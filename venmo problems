@@ -1,0 +1,41 @@
+DESCRIPTION OF PROBLEMS/STATUS ON VENMO
+
+12/17/2019
+
+-------------PROBLEMS---------------------
+Logging into venmo through HTTPS is hard with 2 factor authentication - prevents a lot of automation approaches
+NOTE: Other factors like cookies and authentication tokens can be solved through HTTP Python Library, but not 2FA  
+NOTE: The reason why the venmo robot.txt is so empty, is because scrapping into venmo seems to be impossible/notallowed 
+
+-----------LEADS-------------------------
+RoboBrowsers (Not very promising)
+More research to Python requests.Session() (works, but is stopped by 2 factor authentication) 
+Selenium (Possibly?)
+
+-----------FUTURE WORK-------------------
+Research whether we can use HTTPS (Python library) through selenium 
+
+
+12/18/2019
+
+------------SOLUTIONS TO PREVIOUS PROBLEMS-----------------------
+Logging into venmo is feasible with selenium - granted it is very hacky and weird 
+-> Essentialy Selenium (which is a library meant to help test websites and stuff), can be 
+used to search through venmo and manually put in the desired credentials and code we want
+
+---------------PROBLEM----------------------
+2FA is still a stickler, but we can still find work arounds 
+- Since venmo sends a text message with a authentication code to a phone #, we can just
+take the code from venmo and put it in.
+
+-> The problem is taking the authentiction code and sending it to our code 
+
+-> Texts are sent through SMS, which are encrypted and protected by both end points. 
+---> We could try a type of man-in-the-middle attak to intercept this text, but that it 
+incredibly illegal and hard to engineer 
+
+---> We could try to emulate phones and have our code read the numbers on the emulations. The problem with this is that this isn't very scalable and phone emulators don't come with phone numbers (and even if emulators did have a SIM, we would need corresponding bank accounts to create new venmo accounts with)
+
+---> We could buy a virtual phone number(s), to receieve these 2FA codes at; however, we still run into having the problem of making venmo accounts with bank accounts attached, and they are expensive, and we don't have a lot of exposure around them.
+
+---> We could try text message forwarding (i.e receiving a text from venmo, and forwarding to our/a specific email). This seems to be the most realistic approach to tackling this problem. The problem is that iOS devices don't have apps/features like this, so anyone with an iphone + venmo can't do it. We also run into this problem where we have to use real venmo accounts 

@@ -3,6 +3,8 @@ import email
 import os
 import cred 
 
+#todo make sure it's able to read properly search and sort through the emails
+
 def extract_emails(byte_data):
 	msgs = []
 	for num in byte_data[0].split():

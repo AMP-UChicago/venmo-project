@@ -1,3 +1,4 @@
+#Library used to help access email
 import imaplib
 import email
 import os

@@ -8,4 +8,4 @@ Dynamic Waits - we need to be able to make sure that everything is loaded in the
 --> How can we do this? We can check for a specific web element/page that is consistent throughout the website and loads last. 
 ----> That way, we can wait an X amount of secs, and check if the element is loaded before doing anything (if not we just wait X seconds again)
 
-
+We also need unit testing within our code (this is incredibly important)

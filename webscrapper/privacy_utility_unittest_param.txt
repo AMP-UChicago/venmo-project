@@ -1,0 +1,41 @@
+#HASHING ALGORITHMS
+blake2b
+blake2s
+md5
+sha1
+sha224
+sha256
+sha384
+sha3_224
+sha3_256
+sha3_384
+sha3_512
+sha512
+#ENCODING SETS
+utf-8
+utf-16
+utf-32
+#TESTSTRINGS
+test string 1
+teststring1
+test string 2
+teststring2
+test string 3
+teststring3
+test string 4
+teststring4
+Applied Data Science Group
+APPLIED DATA SCIENCE GROUP
+applieddatasciencegroup
+Ted Kim
+I LOVE MEMES
+test string 5
+teststring5
+hello world
+helloworld
+salthelloworldsalt
+deadbeef
+beefdead
+foobar
+barfoo
+foo bar

@@ -47,7 +47,11 @@ class email_interface():
 		else:
 			print("Logged Out Success: {}".format(resp))
 
-		# del self #doesn't actually work :(
+	def extract_last_email(self, messages: list):
+		#very specific function for the sel_crawler.py, lol
+		#it's one line so sort of useless, but makes the code in sel_crawler cleaner
+		# still maybe we should delete this
+		return get_email_body(email.message_from_bytes((messages[-1])[0][1]))
 
 def unit_testing():
 	return
@@ -64,4 +68,5 @@ if __name__ == "__main__":
 	# for msg in messages: 
 	# 	print(get_email_body(email.message_from_bytes(msg[0][1])))
 
-	print(get_email_body(email.message_from_bytes((messages[-1])[0][1])))
+	# print(get_email_body(email.message_from_bytes((messages[-1])[0][1])))
+	print(a.extract_last_email(messages))

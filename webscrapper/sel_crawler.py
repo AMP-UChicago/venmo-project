@@ -1,11 +1,26 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 import time
+import re
 import cred #python file that contains venmo login information
 #This is excluded from the github commit for obvious reasons
 
+import email_utility as eu 
+
+def find_venmo_auth_code(text:str):
+	#Keep in mind that the structure of a venmo auth code is 
+	#"Your Venmo verification code is 000000" (6 numbers)
+	#With Email forwarding it is: 
+	#"Received SMS: Your Venmo verification code is 00000, Sender: 86753"
+	#If any of that changes, we're going to have to change the program that extracts 
+	#the auth number 
+
+
+"Received SMS: Your Venmo verification code is 700608, Sender: 86753"
 class venmo_crawler():
-	def __init__(self,username,password,**html_resources):
+	def __init__(self,username,password,email_un,email_pw,**html_resources):
+		self.email_un = email_un
+		self.email_pw = email_pw
 		self.resc = html_resources
 		self.driver = webdriver.Chrome()
 		self.open_website()
@@ -47,6 +62,12 @@ class venmo_crawler():
 		self.pause_crawler(10)
 		return;
 
+	def get_authentication_code(self):
+		interface = eu.email_interface(self.email_un, self.email_pw, 'imap.gmail.com')
+		auth_emails = interface.find_emails_from(self.email_un)
+		print(eu.get_email_body(email.message_from_bytes((auth_emails[-1])[0][1])))
+
+
 	def enter_authentication_code(self, code:int):
 		auth_code = self.driver.find_element_by_name(self.resc['auth-code'])
 		auth_code.send_keys("{}".format(code))
@@ -79,4 +100,6 @@ if __name__ == "__main__":
 		'button_name_element':'ladda-label',
 		'auth-code':'token'
 	}
-	a = venmo_crawler(cred.username,cred.password,**html_info)
+	a = venmo_crawler(cred.v_username2,cred.v_password2,cred.v_email_un,
+												cred.v_email_pd,**html_info)
+	a.get_authentication_code()

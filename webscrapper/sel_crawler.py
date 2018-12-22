@@ -18,8 +18,8 @@ class venmo_crawler():
 
 		option = webdriver.ChromeOptions()
 		option.add_argument("--incognito")
-		self.driver = webdriver.Chrome(chrome_options=option)
-		
+		self.driver = webdriver.Chrome(options=option)
+
 		self.open_website()
 		self.login(username,password)
 		# open_website(self.driver, self.resc['login-url'])

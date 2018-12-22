@@ -39,3 +39,8 @@ incredibly illegal and hard to engineer
 ---> We could buy a virtual phone number(s), to receieve these 2FA codes at; however, we still run into having the problem of making venmo accounts with bank accounts attached, and they are expensive, and we don't have a lot of exposure around them.
 
 ---> We could try text message forwarding (i.e receiving a text from venmo, and forwarding to our/a specific email). This seems to be the most realistic approach to tackling this problem. The problem is that iOS devices don't have apps/features like this, so anyone with an iphone + venmo can't do it. We also run into this problem where we have to use real venmo accounts 
+
+12/20/2019
+
+------------SOLUTIONS TO PREVIOUS PROBLEMS-----------------------
+We have a hacky way of beating authentication - 

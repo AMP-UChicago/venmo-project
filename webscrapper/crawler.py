@@ -1,10 +1,10 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 import selenium.common.exceptions
+from enum import Enum
 import time
 import re
 import random
-from enum import Enum
 
 import cred #python file that contains venmo login information
 #This is excluded from the github commit for obvious reasons
@@ -19,17 +19,21 @@ import privacy_utility as pu
 class Cstate(Enum):
 	LOGIN = 1 
 	HOME = 2
-	PROFILE = 3
-	FRIENDS = 4
-	LOGOUT = 5
+	PERSONAL = 3
+	FRIENDSLIST = 4
+	PROFILE = 5
+	LOGGEDOUT = 6
 
 #class = "connection-username" data-reacid = ""
+#Usernames on profiles are covered in parenthesis ex: (username here)
 
+#in addition, when you open up the friend's page of a different user, you cannot 
+#actually see all of them like you do for your personal friends, just a list of images
 
 class alpha_crawler():
-	def __init__(self,profun,pause_timer=30,var=5,verbose=True,**html_resources):
+	def __init__(self,prof_un,pause_timer=30,var=5,verbose=True,**html_resources):
 		self.state = Cstate.LOGIN
-		self.profile = profun
+		self.profile = prof_un
 		self.current_profile = ""
 		self.ptimer = pause_timer 
 		self.var = var
@@ -40,7 +44,7 @@ class alpha_crawler():
 		self.driver = webdriver.Chrome(options=browser_options)
 		return;
 
-	def open_website(self,x=0,y=0,width=500,length=900):
+	def open_website(self,x=0,y=0,width=700,length=800):
 		self.cprint("Opening Website")
 		self.driver.get(self.resc['login-url'])
 		self.driver.set_window_size(width,length)
@@ -113,6 +117,7 @@ class alpha_crawler():
 											self.resc['button_class_name'])
 		buttons[1].click()
 		self.cprint("Clicked (Not Now)") #I think this is what they used
+		self.state = Cstate.HOME #Right after you log in, you should be on the home screen
 		self.pause_crawler(self.ptimer,variation=self.var)
 		return;
 
@@ -125,15 +130,15 @@ class alpha_crawler():
 	#TODO Condense these functions to make it more elegant
 	def logout(self):
 		self.click_href("/account/logout")
-		self.state = Cstate.LOGOUT
+		self.state = Cstate.LOGGEDOUT
 		self.pause_crawler(self.ptimer,variation=self.var)
 		# lb = self.driver.find_element_by_xpath('//a[@href="'+ "/account/logout"+ '"]')
 		# print(lb)
 		# lb.click()
 
-	def friends_list(self):
+	def perfriendslist(self):
 		self.click_href("/friends")
-		self.state = Cstate.FRIENDS
+		self.state = Cstate.FRIENDSLIST
 		self.cprint("Clicked the (friends) link: switched to FRIENDS state")
 		self.pause_crawler(self.ptimer,variation=self.var)
 		return;
@@ -148,7 +153,7 @@ class alpha_crawler():
 	def perprofile(self):
 		self.click_href("/" + self.profile)
 		self.current_profile = ""
-		self.state = Cstate.PROFILE
+		self.state = Cstate.PERSONAL
 		self.cprint("Clicked the (user's profile) link: switch to PROFILE")
 		self.pause_crawler(self.ptimer,variation=self.var)
 		return;
@@ -157,11 +162,10 @@ class alpha_crawler():
 		self.click_href("/" + username)
 		self.current_profile = username
 		self.state = Cstaste.PROFILE
-		self.
 #--------------------------------------------------------------------------------
-	#This Works for now 
+	#This Works
 	def expand_transaction_list(self):
-		# if(self.state != Cstate.PROFILE):
+		# if(!(self.state == Cstate.PROFILE or self.state == Cstate.PERSONAL)):
 		# 	self.pause_crawler(120,variation=0)
 		# 	self.exit_browser("Crawler is not in the proper state")
 
@@ -216,9 +220,9 @@ class alpha_crawler():
 		# self.enter_authentication_code(auth_code)
 		self.pause_crawler(60,variation=0)
 		# self.pause_crawler(10,variation=0)	
-		self.friends_list()
+		self.perfriendslist()
 		self.home()
-		self.friends_list()	
+		self.perfriendslist()	
 		self.home()
 		self.perprofile()
 		self.expand_transaction_list()

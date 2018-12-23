@@ -1,8 +1,11 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+import selenium.common.exceptions
 import time
 import re
 import random
+from enum import Enum
+
 import cred #python file that contains venmo login information
 #This is excluded from the github commit for obvious reasons
 
@@ -13,9 +16,21 @@ import privacy_utility as pu
 #pw = PassWord
 
 #To research, read Selenium's Web Driver Wait
+class Cstate(Enum):
+	LOGIN = 1 
+	HOME = 2
+	PROFILE = 3
+	FRIENDS = 4
+	LOGOUT = 5
+
+#class = "connection-username" data-reacid = ""
+
 
 class alpha_crawler():
-	def __init__(self,pause_timer=30,var=5,verbose=True,**html_resources):
+	def __init__(self,profun,pause_timer=30,var=5,verbose=True,**html_resources):
+		self.state = Cstate.LOGIN
+		self.profile = profun
+		self.current_profile = ""
 		self.ptimer = pause_timer 
 		self.var = var
 		self.verbose = verbose
@@ -96,13 +111,80 @@ class alpha_crawler():
 
 		buttons = self.driver.find_elements_by_class_name(
 											self.resc['button_class_name'])
-		buttons[0].click()
-		self.cprint("Clicked (Remember)")
+		buttons[1].click()
+		self.cprint("Clicked (Not Now)") #I think this is what they used
 		self.pause_crawler(self.ptimer,variation=self.var)
 		return;
 
-	def cprint(self, p):
-		#CPrint = Crawler Print 
+	def click_href(self, relative_url):
+		link = self.driver.find_element_by_xpath(
+										'//a[@href="{}"]'.format(relative_url))
+		self.cprint("Clicking the {} url".format(relative_url))
+		link.click()
+
+	#TODO Condense these functions to make it more elegant
+	def logout(self):
+		self.click_href("/account/logout")
+		self.state = Cstate.LOGOUT
+		self.pause_crawler(self.ptimer,variation=self.var)
+		# lb = self.driver.find_element_by_xpath('//a[@href="'+ "/account/logout"+ '"]')
+		# print(lb)
+		# lb.click()
+
+	def friends_list(self):
+		self.click_href("/friends")
+		self.state = Cstate.FRIENDS
+		self.cprint("Clicked the (friends) link: switched to FRIENDS state")
+		self.pause_crawler(self.ptimer,variation=self.var)
+		return;
+
+	def home(self):
+		self.click_href("/")
+		self.state = Cstate.HOME
+		self.cprint("Clicked the (home) link: switch to HOME state")
+		self.pause_crawler(self.ptimer,variation=self.var)
+		return;
+
+	def perprofile(self):
+		self.click_href("/" + self.profile)
+		self.current_profile = ""
+		self.state = Cstate.PROFILE
+		self.cprint("Clicked the (user's profile) link: switch to PROFILE")
+		self.pause_crawler(self.ptimer,variation=self.var)
+		return;
+
+	def click_profile(self, username):
+		self.click_href("/" + username)
+		self.current_profile = username
+		self.state = Cstaste.PROFILE
+		self.
+#--------------------------------------------------------------------------------
+	#This Works for now 
+	def expand_transaction_list(self):
+		# if(self.state != Cstate.PROFILE):
+		# 	self.pause_crawler(120,variation=0)
+		# 	self.exit_browser("Crawler is not in the proper state")
+
+		#More button: Class = moreButton "More"
+		#More button: Class = moreButton "No more payments"
+
+		expand_list = True
+		while(expand_list):
+			try:
+				more_button = self.driver.find_element_by_link_text(self.resc['more_href'])
+				more_button.click()
+				self.cprint("\tPressed the (More) button")
+			except selenium.common.exceptions.NoSuchElementException:
+				self.cprint("There is no more (More) buttons to press")
+				expand_list = False
+
+			self.pause_crawler(self.ptimer,variation=self.var)
+
+		# self.driver.find_element_by_xpath('//a[@href="{}"]'.format(self.resc[]))
+		self.cprint("Done expanding the transactions on the profile")
+		return;
+
+	def cprint(self, p): #CPrint = Crawler Print 
 		if(self.verbose):
 			print(p)
 			return;
@@ -110,10 +192,17 @@ class alpha_crawler():
 
 	def pause_crawler(self,sec,variation=0):
 		st = random.uniform(sec-variation,sec+variation)
-		self.cprint("\tSleeping for {} secs".format(round(st,3)))
+		self.cprint("\t\tSleeping for {} secs".format(round(st,3)))
 		time.sleep(st)
-		self.cprint("\tDone sleeping")
+		self.cprint("\t\tDone sleeping")
 		return; 
+
+	def pause_crawler_v2(self):
+		st = random.uniform(self.ptimer - self.var, self.ptimer + self.var)
+		self.cprint("\t\tSleeping for {} secs".format(rounds(st,3)))
+		time.sleep(st)
+		self.cprint("\t\tDone Sleeping")
+		return;
 
 	def exit_browser(self,error_msg):
 		print("Shutting down browser: {}".format(error_msg))
@@ -123,17 +212,31 @@ class alpha_crawler():
 		self.open_website()
 		self.login(v_un,v_pw)
 		self.click_send_authentication_code()
-		auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
-		self.enter_authentication_code(auth_code)
+		# auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
+		# self.enter_authentication_code(auth_code)
+		self.pause_crawler(60,variation=0)
+		# self.pause_crawler(10,variation=0)	
+		self.friends_list()
+		self.home()
+		self.friends_list()	
+		self.home()
+		self.perprofile()
+		self.expand_transaction_list()
+		self.logout()
 
 
 if __name__ == "__main__":
 	html_info = {
-		'login-url': 'https://venmo.com/account/sign-in/',
+		'login-url': 'https://venmo.com/account/sign-in',
 		'username_html_element':'phoneEmailUsername',
 		'password_html_element':'password',
 		'button_class_name':'ladda-label',
-		'auth_html_element':'token'
+		'auth_html_element':'token',
+		'logout_href':'/account/logout',
+		'friends_href':'/friends',
+		'home_href':'/',
+		'more_href':'More',
+		'no_more_payments_href':'No more payments'
 	}
-	a = alpha_crawler(pause_timer=10,var=2,verbose=True,**html_info)
+	a = alpha_crawler(cred.v_prof,pause_timer=5,var=1,verbose=True,**html_info)
 	a.run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd)

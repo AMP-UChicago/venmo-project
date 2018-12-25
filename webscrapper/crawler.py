@@ -6,6 +6,8 @@ import time
 import re
 import random
 
+from bs4 import BeautifulSoup
+
 import cred #python file that contains venmo login information
 #This is excluded from the github commit for obvious reasons
 
@@ -30,6 +32,8 @@ class Cstate(Enum):
 #in addition, when you open up the friend's page of a different user, you cannot 
 #actually see all of them like you do for your personal friends, just a list of images
 
+#on a stranger's profile, there seems to be multiple "small" class = "small" button
+#only one view all is on each profle
 class alpha_crawler():
 	def __init__(self,prof_un,pause_timer=30,var=5,verbose=True,**html_resources):
 		self.state = Cstate.LOGIN
@@ -44,7 +48,7 @@ class alpha_crawler():
 		self.driver = webdriver.Chrome(options=browser_options)
 		return;
 
-	def open_website(self,x=0,y=0,width=700,length=800):
+	def open_website(self,x=0,y=0,width=1000,length=800):
 		self.cprint("Opening Website")
 		self.driver.get(self.resc['login-url'])
 		self.driver.set_window_size(width,length)
@@ -162,6 +166,58 @@ class alpha_crawler():
 		self.click_href("/" + username)
 		self.current_profile = username
 		self.state = Cstaste.PROFILE
+
+	#This works, but it doesn't even matter, the users are all pre-loaded onto
+	#the page
+	def click_view_all(self):
+		# if(self.state != Cstate.PROFILE):
+			# self.logout()
+			# exit()
+		button = self.driver.find_element_by_partial_link_text('View All')
+		button.click()
+		self.cprint("clicking the (View All) button")
+		return;
+
+	#extracts friends from a different profile 
+	def extract_users(self):
+		users = self.driver.find_elements_by_class_name('anchor')
+		usernames = []
+		for x in users:
+			users = x.get_attribute('details')
+			match = re.findall(r'\([\w|\W]+\)',users)
+			if(match):
+				# print(match[0][1:-1]) #indexing removes the parenthesises
+				temp = "/" + match[0][1:-1]
+				print(temp)
+				usernames.append(temp)
+
+		print(usernames)
+		print(len(users))
+		print(len(usernames))
+		return usernames
+
+	#Extracts the personal profile's friends
+	#Also gets the proper number of friends 
+	def extract_friends(self):
+		table = self.driver.find_element_by_class_name('settings-people-members')
+		a = table.get_attribute('innerHTML')
+		
+		page_content = BeautifulSoup(a,"html.parser")
+		tags = page_content.find_all("a")
+		# there are a lot of junk URLs on the page
+		newlist = []
+		for x in tags: 
+			# print(x) #Prints an href object
+			# print(x.get('href')) #prints # of the username
+			# newlist.append(x.get('href'))
+			match = re.findall(r'[/][\w|\W]+',x.get('href'))
+			if(match): #If the list is non-empty
+				newlist.append(match[0])
+			
+		print(newlist)
+		# print(len(newlist))
+		return;
+
 #--------------------------------------------------------------------------------
 	#This Works
 	def expand_transaction_list(self):
@@ -218,15 +274,20 @@ class alpha_crawler():
 		self.click_send_authentication_code()
 		# auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
 		# self.enter_authentication_code(auth_code)
-		self.pause_crawler(60,variation=0)
+		self.pause_crawler(30,variation=0)
 		# self.pause_crawler(10,variation=0)	
-		self.perfriendslist()
-		self.home()
+		# self.perfriendslist()
+		# self.home()
 		self.perfriendslist()	
-		self.home()
-		self.perprofile()
-		self.expand_transaction_list()
-		self.logout()
+		self.extract_friends()
+		# self.home()
+		# self.perprofile()
+		# self.cprint("Fucking d o it right now")
+		# self.pause_crawler(30,variation=0)
+		# self.click_view_all() # we don't actually need to click view_all
+		# self.extract_users()
+		# self.expand_transaction_list()
+		# self.logout()
 
 
 if __name__ == "__main__":

@@ -5,7 +5,6 @@ from enum import Enum
 import time
 import re
 import random
-
 from bs4 import BeautifulSoup
 
 import cred #python file that contains venmo login information
@@ -18,6 +17,10 @@ import privacy_utility as pu
 #pw = PassWord
 
 #To research, read Selenium's Web Driver Wait
+
+# TODO: Actually implement the CStates for the selenium driver
+# TODO: Beging writing down the usernames for the thing 
+# TODO: Implement better naming schemes 
 class Cstate(Enum):
 	LOGIN = 1 
 	HOME = 2
@@ -34,10 +37,12 @@ class Cstate(Enum):
 
 #on a stranger's profile, there seems to be multiple "small" class = "small" button
 #only one view all is on each profle
+
+#Make ure that the transactions we scrape are PUBLIC
 class alpha_crawler():
 	def __init__(self,prof_un,pause_timer=30,var=5,verbose=True,**html_resources):
 		self.state = Cstate.LOGIN
-		self.profile = prof_un
+		self.profile = "/" + prof_un
 		self.current_profile = ""
 		self.ptimer = pause_timer 
 		self.var = var
@@ -92,10 +97,12 @@ class alpha_crawler():
 		#"Received SMS: Your Venmo verification code is 00000, Sender: 86753"
 		#If any of that changes, we're going to have to change the program that extracts 
 		#the auth number 
+
+		#This will also BREAK/Not work if the email does not come from uchicagoamp@gmail.com
 		interface = eu.email_interface(email_un,email_pw,imap_url)
 		auth_emails = interface.find_emails_from(email_un)
 		auth_text = interface.extract_last_email(auth_emails)
-
+		print(auth_text)
 		match = re.findall(r'verification code is \d\d\d\d\d\d',auth_text)
 		if(not match):
 			self.cprint("Seems to be an error with getting the auth code")
@@ -126,46 +133,38 @@ class alpha_crawler():
 		return;
 
 	def click_href(self, relative_url):
+		#this emultes a user clicking on a link rather than typing in a url
 		link = self.driver.find_element_by_xpath(
 										'//a[@href="{}"]'.format(relative_url))
 		self.cprint("Clicking the {} url".format(relative_url))
 		link.click()
 
-	#TODO Condense these functions to make it more elegant
-	def logout(self):
-		self.click_href("/account/logout")
-		self.state = Cstate.LOGGEDOUT
-		self.pause_crawler(self.ptimer,variation=self.var)
-		# lb = self.driver.find_element_by_xpath('//a[@href="'+ "/account/logout"+ '"]')
-		# print(lb)
-		# lb.click()
+	def navigate(self,cmd,relative_url):
+		switch = {
+			'logout':self.click_href,
+			'home':self.click_href,
+			'flist':self.click_href, #friendslist
+			'pprof':self.click_href, #personal profile
+			'coprof':self.click_href, #click other profile
+			'fwd': self.driver.forward, #forward
+			'back': self.driver.back #back
+		}
 
-	def perfriendslist(self):
-		self.click_href("/friends")
-		self.state = Cstate.FRIENDSLIST
-		self.cprint("Clicked the (friends) link: switched to FRIENDS state")
-		self.pause_crawler(self.ptimer,variation=self.var)
+		exe = switch.get(cmd, lambda: self.cprint("invalid command given\b"))
+
+		
+		self.cprint("beginning navigation: {}".format(cmd))
+	
+		#I don't like this approach but I think this is the only "cleanish"
+		#way to do it for now		
+		if(cmd == 'fwd' or cmd == 'back'):
+			exe()
+		else: 
+			exe(relative_url)
+
+		self.cprint("done navigating")
+		self.pause_crawler(self.ptimer, variation=self.var)
 		return;
-
-	def home(self):
-		self.click_href("/")
-		self.state = Cstate.HOME
-		self.cprint("Clicked the (home) link: switch to HOME state")
-		self.pause_crawler(self.ptimer,variation=self.var)
-		return;
-
-	def perprofile(self):
-		self.click_href("/" + self.profile)
-		self.current_profile = ""
-		self.state = Cstate.PERSONAL
-		self.cprint("Clicked the (user's profile) link: switch to PROFILE")
-		self.pause_crawler(self.ptimer,variation=self.var)
-		return;
-
-	def click_profile(self, username):
-		self.click_href("/" + username)
-		self.current_profile = username
-		self.state = Cstaste.PROFILE
 
 	#This works, but it doesn't even matter, the users are all pre-loaded onto
 	#the page
@@ -178,48 +177,44 @@ class alpha_crawler():
 		self.cprint("clicking the (View All) button")
 		return;
 
-	#extracts friends from a different profile 
-	def extract_users(self):
-		users = self.driver.find_elements_by_class_name('anchor')
+
+	def ex_users(self, state):
+		valid_args = {'personal','other'}
+		if state not in valid_args:
+			raise ValueError("profile does not fit the choices: {}".format(valid_args))
+
 		usernames = []
-		for x in users:
-			users = x.get_attribute('details')
-			match = re.findall(r'\([\w|\W]+\)',users)
-			if(match):
-				# print(match[0][1:-1]) #indexing removes the parenthesises
-				temp = "/" + match[0][1:-1]
-				print(temp)
-				usernames.append(temp)
 
-		print(usernames)
-		print(len(users))
-		print(len(usernames))
-		return usernames
+		if(state == 'personal'): #this part works fine
+			self.cprint("extracting personal profile friends")
+			table = self.driver.find_element_by_class_name(self.resc['personal_friendslist'])
+			ihtml = table.get_attribute('innerHTML')
+			page_content = BeautifulSoup(ihtml,'html.parser')
+			parsed_elements = page_content.find_all("a")
 
-	#Extracts the personal profile's friends
-	#Also gets the proper number of friends 
-	def extract_friends(self):
-		table = self.driver.find_element_by_class_name('settings-people-members')
-		a = table.get_attribute('innerHTML')
-		
-		page_content = BeautifulSoup(a,"html.parser")
-		tags = page_content.find_all("a")
-		# there are a lot of junk URLs on the page
-		newlist = []
-		for x in tags: 
-			# print(x) #Prints an href object
-			# print(x.get('href')) #prints # of the username
-			# newlist.append(x.get('href'))
-			match = re.findall(r'[/][\w|\W]+',x.get('href'))
-			if(match): #If the list is non-empty
-				newlist.append(match[0])
+			for element in parsed_elements:
+				match = re.findall(r'[/][\w|\W]+',element.get('href'))
+				if(match): #match is an empty list if there are no matches
+					usernames.append(match[0])
+
+		else: #the two approaches to extracting friends are very different
+			self.cprint("extracting other profile")
+			fs = self.driver.find_elements_by_class_name(self.resc['friend_image'])
 			
-		print(newlist)
-		# print(len(newlist))
+			for nested_element in fs:
+				user = nested_element.get_attribute(self.resc['friend_image_details'])
+				match = re.findall(r'\([\w|\W]+\)',user)
+				if(match):
+					# print(match[0][1:-1]) #indexing like this will remove the parenthesises
+					temp = "/" + match[0][1:-1]
+					usernames.append(temp)
+			
+		print(usernames)
+		print(len(usernames))
+		self.cprint("done extracting")
 		return;
-
 #--------------------------------------------------------------------------------
-	#This Works
+	#This Works -  not sure if this is going to be needed
 	def expand_transaction_list(self):
 		# if(!(self.state == Cstate.PROFILE or self.state == Cstate.PERSONAL)):
 		# 	self.pause_crawler(120,variation=0)
@@ -227,7 +222,6 @@ class alpha_crawler():
 
 		#More button: Class = moreButton "More"
 		#More button: Class = moreButton "No more payments"
-
 		expand_list = True
 		while(expand_list):
 			try:
@@ -272,23 +266,26 @@ class alpha_crawler():
 		self.open_website()
 		self.login(v_un,v_pw)
 		self.click_send_authentication_code()
-		# auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
-		# self.enter_authentication_code(auth_code)
+		auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
+		self.enter_authentication_code(auth_code)
 		self.pause_crawler(30,variation=0)
-		# self.pause_crawler(10,variation=0)	
-		# self.perfriendslist()
-		# self.home()
-		self.perfriendslist()	
-		self.extract_friends()
-		# self.home()
-		# self.perprofile()
-		# self.cprint("Fucking d o it right now")
-		# self.pause_crawler(30,variation=0)
-		# self.click_view_all() # we don't actually need to click view_all
-		# self.extract_users()
-		# self.expand_transaction_list()
-		# self.logout()
-
+		
+		# self.navigate('pprof', self.profile) #go to person profile
+		# self.pause_crawler(20, variation = 6) 
+		# self.navigate('back', "nothing") #go back to home
+		# self.pause_crawler(20, variation = 6)
+		# self.navigate('fwd', "aoidj") # go back forward to personal profile
+		# self.pause_crawler(20, variation = 6)
+		# self.navigate('pprof', self.profile) #go bacl to home
+		# self.pause_crawler(20, variation = 6)
+		# self.navigate('home', "/")		
+		# self.pause_crawler(20, variation = 6)
+		# self.navigate('back', "nothing") #go back to pprof
+		# self.pause_crawler(20, variation = 6)
+		# self.navigate('flist', "/friends")
+		# self.pause_crawler(20, variation = 6)
+		# self.navigate('logout',"/account/logout")
+		
 
 if __name__ == "__main__":
 	html_info = {
@@ -301,7 +298,11 @@ if __name__ == "__main__":
 		'friends_href':'/friends',
 		'home_href':'/',
 		'more_href':'More',
-		'no_more_payments_href':'No more payments'
+		'no_more_payments_href':'No more payments',
+		'personal_friendslist':'settings-people-members',
+		'friend_image':'anchor',
+		'friend_image_details':'details'
 	}
 	a = alpha_crawler(cred.v_prof,pause_timer=5,var=1,verbose=True,**html_info)
 	a.run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd)
+	

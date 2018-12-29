@@ -21,13 +21,6 @@ import privacy_utility as pu
 # TODO: Actually implement the CStates for the selenium driver
 # TODO: Beging writing down the usernames for the thing 
 # TODO: Implement better naming schemes 
-class Cstate(Enum):
-	LOGIN = 1 
-	HOME = 2
-	PERSONAL = 3
-	FRIENDSLIST = 4
-	PROFILE = 5
-	LOGGEDOUT = 6
 
 #class = "connection-username" data-reacid = ""
 #Usernames on profiles are covered in parenthesis ex: (username here)
@@ -39,6 +32,28 @@ class Cstate(Enum):
 #only one view all is on each profle
 
 #Make ure that the transactions we scrape are PUBLIC
+
+class Cstate(Enum):
+	LOGIN = 1 
+	HOME = 2
+	PERSONAL = 3
+	FRIENDSLIST = 4
+	PROFILE = 5
+	LOGGEDOUT = 6
+
+class activity():
+	def __init__(self, send, rec, date, description, likes, ps):
+		self.sender = send 
+		self.receiver = rec 
+		self.date = date 
+		self.desc = description 
+		self.nlikes = likes,
+		self.ps = ps
+
+	def prettyp(self):
+		print("sender: {}, receiver {}, date {}, tagline {}, likes {}, privacy setting: {}"
+			.format(self.sender, self.receiver, self.date, self.desc, self.likes, self.ps))
+
 class alpha_crawler():
 	def __init__(self,prof_un,pause_timer=30,var=5,verbose=True,**html_resources):
 		self.state = Cstate.LOGIN
@@ -213,6 +228,24 @@ class alpha_crawler():
 		print(len(usernames))
 		self.cprint("done extracting")
 		return;
+
+	#extracting transactions should be the same regardless of the page 
+	#seems to detect 5 more than it should
+	def ex_trans(self): 
+		transactions = []
+		self.cprint("beginngin to extract transaction")
+		raw_elements = self.driver.find_elements_by_class_name(self.resc['transaction_class'])
+		# print(raw_elements)
+		print(len(raw_elements))
+
+		pre = []
+		for x in raw_elements: 
+			pre.append(x.get_attribute('innerHTML'))
+		
+		print(pre)
+		print(len(pre))
+		# print(vars(raw_elements[0]))
+		# print(dir(raw_elements[0]))
 #--------------------------------------------------------------------------------
 	#This Works -  not sure if this is going to be needed
 	def expand_transaction_list(self):
@@ -263,28 +296,40 @@ class alpha_crawler():
 		self.driver.quit()
 
 	def run(self,v_un,v_pw,email_un,email_pw,imap_url='imap.gmail.com'):
-		self.open_website()
-		self.login(v_un,v_pw)
-		self.click_send_authentication_code()
-		auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
-		self.enter_authentication_code(auth_code)
-		self.pause_crawler(30,variation=0)
-		
-		# self.navigate('pprof', self.profile) #go to person profile
-		# self.pause_crawler(20, variation = 6) 
-		# self.navigate('back', "nothing") #go back to home
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('fwd', "aoidj") # go back forward to personal profile
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('pprof', self.profile) #go bacl to home
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('home', "/")		
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('back', "nothing") #go back to pprof
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('flist', "/friends")
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('logout',"/account/logout")
+		try: 
+			self.open_website()
+			self.login(v_un,v_pw)
+			self.click_send_authentication_code()
+			self.pause_crawler(10, variation = 2)
+			auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
+			self.pause_crawler(10, variation = 2)
+			self.enter_authentication_code(auth_code)
+			self.pause_crawler(30,variation=0)
+
+			self.navigate('pprof', self.profile)
+			self.pause_crawler(20,variation =6)
+			self.expand_transaction_list()
+			self.ex_trans()
+#-------------------------------------------------------------------------------			
+			# self.navigate('pprof', self.profile) #go to person profile
+			# self.pause_crawler(20, variation = 6) 
+			# self.navigate('back', "nothing") #go back to home
+			# self.pause_crawler(20, variation = 6)
+			# self.navigate('fwd', "aoidj") # go back forward to personal profile
+			# self.pause_crawler(20, variation = 6)
+			# self.navigate('pprof', self.profile) #go bacl to home
+			# self.pause_crawler(20, variation = 6)
+			# self.navigate('home', "/")		
+			# self.pause_crawler(20, variation = 6)
+			# self.navigate('back', "nothing") #go back to pprof
+			# self.pause_crawler(20, variation = 6)
+			# self.navigate('flist', "/friends")
+			# self.pause_crawler(20, variation = 6)
+			# self.navigate('logout',"/account/logout")
+		except: 
+			eu.send_email('smtp.gmail.com',email_un,"tedkim97@uchicago.edu",
+										email_pw,"error","hihi test message 2")
+
 		
 
 if __name__ == "__main__":
@@ -301,7 +346,9 @@ if __name__ == "__main__":
 		'no_more_payments_href':'No more payments',
 		'personal_friendslist':'settings-people-members',
 		'friend_image':'anchor',
-		'friend_image_details':'details'
+		'friend_image_details':'details',
+		'transaction_class': 'profile_feed_story' #'p_ten_t'
+		#profile feed stories tend to work a lot better for extracting transaction
 	}
 	a = alpha_crawler(cred.v_prof,pause_timer=5,var=1,verbose=True,**html_info)
 	a.run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd)

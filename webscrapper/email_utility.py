@@ -5,6 +5,8 @@ import email
 import os
 import re
 import cred
+import smtplib
+import ssl
 
 # TODO = Implement Unit tests for email utility
 #Also include type hints, because I don't really get what's happening 
@@ -14,6 +16,24 @@ def get_email_body(msg):
 		return get_email_body(msg.get_payload(0))
 	else: 
 		return (msg.get_payload(None,True)).decode('utf-8')
+
+def format_email(saddr,raddr,subj,message):
+	eml = email.message.EmailMessage()
+	eml['Subject'] = subj
+	eml['From'] = saddr	
+	eml['To'] = raddr
+	eml.set_content(message)
+	return eml
+
+#stolen from a tutorial online
+def send_email(email_server,saddr,raddr,pw,subj,msg):
+	context = ssl.create_default_context()
+	# with smtplib.SMTP_SSL(email_server, 465, context=context) as server:
+	server = smtplib.SMTP_SSL(email_server, 465, context=context)
+	server.login(saddr,pw)
+	server.sendmail(saddr,raddr,(format_email(saddr,raddr,subj,msg)).as_string())
+	print("Sent email with message: {}".format(msg))
+
 
 class email_interface():
 	def __init__(self,username,password,imap_url,section='INBOX'):
@@ -61,12 +81,7 @@ if __name__ == "__main__":
 	username = cred.v_email_un 
 	password = cred.v_email_pd
 
-	a = email_interface(username,password,'imap.gmail.com')
-	messages = a.find_emails_from('uchicagoamp@gmail.com')
-	# messages = a.find_emails_from('Welcome to Facebook')
-
-	# for msg in messages: 
-	# 	print(get_email_body(email.message_from_bytes(msg[0][1])))
-
-	# print(get_email_body(email.message_from_bytes((messages[-1])[0][1])))
-	print(a.extract_last_email(messages))
+	send_email('smtp.gmail.com',username,"tedkim97@uchicago.edu",password,"error","hihi test message 2")
+	# a = email_interface(username,password,'imap.gmail.com')
+	# messages = a.find_emails_from('uchicagoamp@gmail.com')
+	# print(a.extract_last_email(messages)) 

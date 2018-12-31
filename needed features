@@ -1,14 +1,32 @@
-Features we need to add within our venmo webscrapper: 
+Features we need to add within our venmo webscrapper:
 
+------------------------------------------------------------------------------------------------------------------------------
 Randomized user behavior (i.e, we need to click things randomly so venmo doesn't get suspicious and boot us off) (EX: clicking on a different person every 30 seconds might be PRETTY suspicious, so we need to randomize these things a bit).  
-----------------------------ABOVE PROBLEM SORTA DONE/GOOD ENOUGH FOR ME----------------------------------------------
+----------------------------ABOVE PROBLEM SORTA DONE/GOOD ENOUGH FOR ME-------------------------------------------------------
 
+------------------------------------------------------------------------------------------------------------------------------
 Error Handling/Possible Exceptions - we need to be able to handle errors (internet suddenly going out, being logged off/kicked off by venmo/running into a case where a user deletes their account and everyhting goes missing)
+------------------------------------------------------------------------------------------------------------------------------
 
+------------------------------------------------------------------------------------------------------------------------------
 Dynamic Waits - we need to be able to make sure that everything is loaded in the page before we do ANYTHING. 
 --> How can we do this? We can check for a specific web element/page that is consistent throughout the website and loads last. 
 ----> That way, we can wait an X amount of secs, and check if the element is loaded before doing anything (if not we just wait X seconds again)
+--> TODO: Research Selenium's web driver wait 
+------------------------------------------------------------------------------------------------------------------------------
 
-We also need unit testing within our code (this is incredibly important)
+------------------------------------------------------------------------------------------------------------------------------
+We need unit testing within our code (this is incredibly important)
+------------------------------------------------------------------------------------------------------------------------------
 
+------------------------------------------------------------------------------------------------------------------------------
+Implement states for the crawler [in progress]
+------------------------------------------------------------------------------------------------------------------------------
 
+------------------------------------------------------------------------------------------------------------------------------
+Implement features that allow to start from anywhere/resume session
+------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------
+Start implementing Graph searchng algorithms 
+------------------------------------------------------------------------------------------------------------------------------

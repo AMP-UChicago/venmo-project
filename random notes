@@ -1,0 +1,15 @@
+# TODO: Implement better naming schemes 
+
+#class = "connection-username" data-reacid = ""
+#Usernames on profiles are covered in parenthesis ex: (username here)
+
+#in addition, when you open up the friend's page of a different user, you cannot 
+#actually see all of them like you do for your personal friends, just a list of images
+
+#on a stranger's profile, there seems to be multiple "small" class = "small" button
+#only one view all is on each profle
+
+#Make sure that the transactions we scrape are PUBLIC
+
+#un = UserName
+#pw = PassWord

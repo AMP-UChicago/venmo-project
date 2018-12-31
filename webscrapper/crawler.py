@@ -13,25 +13,6 @@ import cred #python file that contains venmo login information
 import email_utility as eu 
 import privacy_utility as pu 
 
-#un = UserName
-#pw = PassWord
-
-#To research, read Selenium's Web Driver Wait
-
-# TODO: Actually implement the CStates for the selenium driver
-# TODO: Beging writing down the usernames for the thing 
-# TODO: Implement better naming schemes 
-
-#class = "connection-username" data-reacid = ""
-#Usernames on profiles are covered in parenthesis ex: (username here)
-
-#in addition, when you open up the friend's page of a different user, you cannot 
-#actually see all of them like you do for your personal friends, just a list of images
-
-#on a stranger's profile, there seems to be multiple "small" class = "small" button
-#only one view all is on each profle
-
-#Make ure that the transactions we scrape are PUBLIC
 
 class Cstate(Enum):
 	LOGIN = 1 
@@ -56,7 +37,8 @@ class activity():
 
 class alpha_crawler():
 	def __init__(self,prof_un,pause_timer=30,var=5,verbose=True,**html_resources):
-		# self.state = Cstate.LOGIN
+		self.pstate = None
+		self.cstate = None
 		self.profile = "/" + prof_un
 		self.current_profile = ""
 		self.ptimer = pause_timer 
@@ -73,6 +55,7 @@ class alpha_crawler():
 		self.driver.get(self.resc['login-url'])
 		self.driver.set_window_size(width,length)
 		self.driver.set_window_position(x,y)
+		self.change_state(Cstate.LOGIN)
 		self.pause_crawler(self.ptimer,variation=self.var)
 		return;
 
@@ -142,7 +125,8 @@ class alpha_crawler():
 		buttons = self.driver.find_elements_by_class_name(
 											self.resc['button_class_name'])
 		buttons[1].click()
-		self.cprint("Clicked (Not Now)") #I think this is what they used
+		self.cprint("Clicked (Not Now)") #I think this is what they useds
+		self.change_state(Cstate.HOME)
 		self.pause_crawler(self.ptimer,variation=self.var)
 		return;
 
@@ -152,6 +136,13 @@ class alpha_crawler():
 										'//a[@href="{}"]'.format(relative_url))
 		self.cprint("Clicking the {} url".format(relative_url))
 		link.click()
+		return;
+
+	def change_state(self, nstate):
+		self.pstate = self.cstate
+		self.cstate = nstate
+		self.cprint("Changing state to {}".format(nstate))
+		return;
 
 	def navigate(self,cmd,relative_url):
 		switch = {
@@ -165,11 +156,9 @@ class alpha_crawler():
 		}
 
 		exe = switch.get(cmd, lambda: self.cprint("invalid command given\b"))
-
 		self.cprint("beginning navigation: {}".format(cmd))
 	
-		#I don't like this approach but I think this is the only "cleanish"
-		# way to do it for now		
+		#I don't like this approach but I think this is the only "cleanish" way to do it for now		
 		if(cmd == 'fwd' or cmd == 'back'):
 			exe()
 		else: 
@@ -228,11 +217,12 @@ class alpha_crawler():
 		return;
 
 	#extracting transactions should be the same regardless of the page 
-	def ex_trans(self, state):
+	def ex_trans(self, state, fname):
 		valid_args = {'personal','other'}
 		if state not in valid_args:
 			raise ValueError("state does not fit the choices: {}".format(valid_args))
 
+		self.expand_transaction_list()
 	 
 		transactions = []
 		self.cprint("beginngin to extract transaction")
@@ -247,14 +237,15 @@ class alpha_crawler():
 			unames = box_content.find_all('a')
 			sender = unames[0].get('href')
 			recv = unames[3].get('href')
-			description = (box_content.find('div',style='word-wrap:break-word')).getText().strip()
-			date = (box_content.find('a','gray_link')).getText().strip()
+			description = (box_content.find(self.resc['desc_tag'],style=self.resc['desc_style'])).getText().strip()
+			date = (box_content.find(self.resc['date_tag'],self.resc['date_class'])).getText().strip()
 			privacy = "unknown"
 			if(state == "personal"):
-				privacy = (box_content.find('span',"audience_button")).get('id2').strip()
+				privacy = (box_content.find(self.resc['privacy_tag'],self.resc['privacy_class'])).get(self.resc['privacy_set']).strip()
 
+			self.add_transaction_v2(fname,sender,recv,description,date,privacy)
 			print("sender: {} recv: {} text: {} date:{} privacy:{}\n--------".format(sender,recv,description,date,privacy))
-#--------------------------------------------------------------------------------
+
 	def expand_transaction_list(self):
 		# if(!(self.state == Cstate.PROFILE or self.state == Cstate.PERSONAL)):
 		# 	self.pause_crawler(120,variation=0)
@@ -276,6 +267,18 @@ class alpha_crawler():
 
 		# self.driver.find_element_by_xpath('//a[@href="{}"]'.format(self.resc[]))
 		self.cprint("Done expanding the transactions on the profile")
+		return;
+
+	#if we ever decide to implement a struct for this 
+	def add_transaction(self,fname,trnx):
+		file = open(fname, "a")
+		file.write("\n")
+		return;
+
+	def add_transaction_v2(self,fname,s,r,des,dat,ps):
+		file = open(fname, "a")
+		file.write("sender: {}, receiver: {}, text: {}, date: {} , privacy setting: {}\n".format(s,r,des,dat,ps))
+		file.close()
 		return;
 
 	def cprint(self, p): #CPrint = Crawler Print 
@@ -302,7 +305,7 @@ class alpha_crawler():
 		print("Shutting down browser: {}".format(error_msg))
 		self.driver.quit()
 
-	def run(self,v_un,v_pw,email_un,email_pw,imap_url='imap.gmail.com'):
+	def run(self,v_un,v_pw,email_un,email_pw,fname,imap_url='imap.gmail.com'):
 		# try: 
 		self.open_website()
 		self.login(v_un,v_pw)
@@ -315,36 +318,18 @@ class alpha_crawler():
 
 		self.navigate('pprof', self.profile)
 		self.pause_crawler(20,variation =6)
-		self.expand_transaction_list()
-		self.ex_trans('personal')
+		self.ex_trans('personal',fname)
 		self.navigate('flist','/friends')
 		self.pause_crawler(20,variation = 3)
 		self.ex_users('personal')
 		self.navigate('coprof',"/Ted-Kim-14")
 		self.pause_crawler(20,variation = 3)
 		self.ex_users('other')
-		self.ex_trans('other')
-#-------------------------------------------------------------------------------			
-			# self.navigate('pprof', self.profile) #go to person profile
-			# self.pause_crawler(20, variation = 6) 
-			# self.navigate('back', "nothing") #go back to home
-			# self.pause_crawler(20, variation = 6)
-			# self.navigate('fwd', "aoidj") # go back forward to personal profile
-			# self.pause_crawler(20, variation = 6)
-			# self.navigate('pprof', self.profile) #go bacl to home
-			# self.pause_crawler(20, variation = 6)
-			# self.navigate('home', "/")		
-			# self.pause_crawler(20, variation = 6)
-			# self.navigate('back', "nothing") #go back to pprof
-			# self.pause_crawler(20, variation = 6)
-			# self.navigate('flist', "/friends")
-			# self.pause_crawler(20, variation = 6)
-			# self.navigate('logout',"/account/logout")
+		self.ex_trans('other',fname)
 		# except: 
 			# eu.send_email('smtp.gmail.com',email_un,"tedkim97@uchicago.edu",
 										# email_pw,"error","hihi test message 2")
 
-		
 
 if __name__ == "__main__":
 	html_info = {
@@ -361,9 +346,15 @@ if __name__ == "__main__":
 		'personal_friendslist':'settings-people-members',
 		'friend_image':'anchor',
 		'friend_image_details':'details',
-		'transaction_class': 'profile_feed_story' #'p_ten_t'
-		#profile feed stories tend to work a lot better for extracting transaction
+		'transaction_class': 'profile_feed_story',
+		'desc_tag':'div',
+		'desc_style':'word-wrap:break-word',
+		'date_tag':'a',
+		'date_class':'gray_link',
+		'privacy_tag':'span',
+		'privacy_class':'audience_button',
+		'privacy_set':'id2'
 	}
 	a = alpha_crawler(cred.v_prof,pause_timer=5,var=1,verbose=True,**html_info)
-	a.run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd)
+	a.run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd,'one.trnx')
 	

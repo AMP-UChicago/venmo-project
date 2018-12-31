@@ -6,6 +6,15 @@ Randomized user behavior (i.e, we need to click things randomly so venmo doesn't
 
 ------------------------------------------------------------------------------------------------------------------------------
 Error Handling/Possible Exceptions - we need to be able to handle errors (internet suddenly going out, being logged off/kicked off by venmo/running into a case where a user deletes their account and everyhting goes missing)
+	-> Sort of being worked on, could be better
+------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------
+Error notification: having someway to know if our crawler has hit a snap for some reason 
+---------------------------------ABOVE PROBLEM DONE (CRAWLER SENDS AN EMAIL FOR ERROR)----------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------
+Better way of throwing out errors/more descriptive errors within the crawler
 ------------------------------------------------------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------------------------------------------------------
@@ -13,6 +22,9 @@ Dynamic Waits - we need to be able to make sure that everything is loaded in the
 --> How can we do this? We can check for a specific web element/page that is consistent throughout the website and loads last. 
 ----> That way, we can wait an X amount of secs, and check if the element is loaded before doing anything (if not we just wait X seconds again)
 --> TODO: Research Selenium's web driver wait 
+
+-> The solution is to make redundant wait times, (pausing the crawler), but I am unhappy with this solution, 
+---> There are moments where our crawler runs too fast, and moments whre our crawler just waits too long
 ------------------------------------------------------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------------------------------------------------------
@@ -20,13 +32,20 @@ We need unit testing within our code (this is incredibly important)
 ------------------------------------------------------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------------------------------------------------------
-Implement states for the crawler [in progress]
+Implement states for the crawler [IN PROGRESS]
+------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------
+After implementing states, modifying our crawler methods in order to use these states to reduce external function arguments
+[IN PROGRESS]
 ------------------------------------------------------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------------------------------------------------------
 Implement features that allow to start from anywhere/resume session
+--> perhapes a rebuild function?
 ------------------------------------------------------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------------------------------------------------------
-Start implementing Graph searchng algorithms 
+Start implementing Graph searchng algorithms [HIGH PRIORITY]
+--> Needs a lot of research 
 ------------------------------------------------------------------------------------------------------------------------------

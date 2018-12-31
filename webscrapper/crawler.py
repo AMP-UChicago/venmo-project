@@ -237,6 +237,7 @@ class alpha_crawler():
 		self.cprint("done extracting")
 		return;
 
+	#there is actually a huge mitake in this 
 	def ex_trans(self, fname):
 		if(not (self.cstate == Dstate.PERSONAL or self.cstate == Dstate.PROFILE)):
 			raise ValueError("Incorrect state: {}".format(self.cstate))

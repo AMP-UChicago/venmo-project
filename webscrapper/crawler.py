@@ -166,11 +166,10 @@ class alpha_crawler():
 
 		exe = switch.get(cmd, lambda: self.cprint("invalid command given\b"))
 
-		
 		self.cprint("beginning navigation: {}".format(cmd))
 	
 		#I don't like this approach but I think this is the only "cleanish"
-		#way to do it for now		
+		# way to do it for now		
 		if(cmd == 'fwd' or cmd == 'back'):
 			exe()
 		else: 
@@ -219,7 +218,7 @@ class alpha_crawler():
 				user = nested_element.get_attribute(self.resc['friend_image_details'])
 				match = re.findall(r'\([\w|\W]+\)',user)
 				if(match):
-					# print(match[0][1:-1]) #indexing like this will remove the parenthesises
+					#indexing like this will remove the parenthesises
 					temp = "/" + match[0][1:-1]
 					usernames.append(temp)
 			
@@ -229,15 +228,19 @@ class alpha_crawler():
 		return;
 
 	#extracting transactions should be the same regardless of the page 
-	#seems to detect 5 more than it should
-	def ex_trans(self): 
+	def ex_trans(self, state):
+		valid_args = {'personal','other'}
+		if state not in valid_args:
+			raise ValueError("state does not fit the choices: {}".format(valid_args))
+
+	 
 		transactions = []
 		self.cprint("beginngin to extract transaction")
 		raw_elements = self.driver.find_elements_by_class_name(self.resc['transaction_class'])
-		# print(raw_elements)
-		print(len(raw_elements))
+		self.cprint("length of extracted list = {}".format(len(raw_elements)))
 
-		pre = []
+
+		trns = []
 		for x in raw_elements: 
 			# pre.append(x.get_attribute('innerHTML'))
 			box_content = BeautifulSoup(x.get_attribute('innerHTML'),'html.parser')
@@ -246,64 +249,12 @@ class alpha_crawler():
 			recv = unames[3].get('href')
 			description = (box_content.find('div',style='word-wrap:break-word')).getText().strip()
 			date = (box_content.find('a','gray_link')).getText().strip()
-			rpriv = (box_content.find('div',"tooltip")).getText().strip()
-			print(rpriv)
-			match = re.findall(r'Setting: \w+',rpriv)
-			if(match):
-				# print("have a match")
-				privacy = match[0][8:]
+			privacy = "unknown"
+			if(state == "personal"):
+				privacy = (box_content.find('span',"audience_button")).get('id2').strip()
+
 			print("sender: {} recv: {} text: {} date:{} privacy:{}\n--------".format(sender,recv,description,date,privacy))
-		
-		# pre2 = []
-		# for y in pre: 
-		# 	box_content = BeautifulSoup(y, 'html.parser') #.prettify()
-		# 	# tags = box_content.find_all('a')
-		# 	# sender = tags[0].get('href')
-		# 	# recv = tags[3].get('href')
-		# 	pre2.append(box_content)
-		# 	# trans = box_content.find_all('a')
-		# 	# sender = trans[0].get('href')
-		# 	# recv = trans[3].get('href')
-
-
-		# # print(pre)
-		# print(len(pre))
-		# print(len(pre2))
-
-		# jank = pre2[0].find_all('a')
-		# print(jank[0].get('href'))
-		# print(jank[3].get('href'))
-		# #this doesn't work 
-		# jank2 = pre2[0].find('div',style = 'word-wrap:break-word')
-		# print(jank2)
-		# print(jank2.getText().strip())
-
-		# jank3 = pre2[0].find('a','gray_link')
-		# print(jank3)
-		# print(jank3.getText().strip())
-
-		# jank4 = pre2[0].find('div',"tooltip")
-		# print(jank4)
-		# print(jank4.getText().strip())
-		# #------------------------------------------------
-		# jank5 = pre2[1].find_all('a')
-		# print(jank5[0].get('href'))
-		# print(jank5[3].get('href'))
-
-		# jank6 = pre2[1].find('div',style = 'word-wrap:break-word')
-		# print(jank6)
-		# print(jank6.getText().strip())
-
-		# jank7 = pre2[1].find('a','gray_link')
-		# print(jank7)
-		# print(jank7.getText().strip())
-
-		# jank8 = pre2[1].find('div',"tooltip")
-		# print(jank8)
-		# print(jank8.getText().strip())
-		# print(pre2[1].prettify())
 #--------------------------------------------------------------------------------
-	#This Works -  not sure if this is going to be needed
 	def expand_transaction_list(self):
 		# if(!(self.state == Cstate.PROFILE or self.state == Cstate.PERSONAL)):
 		# 	self.pause_crawler(120,variation=0)
@@ -365,7 +316,14 @@ class alpha_crawler():
 		self.navigate('pprof', self.profile)
 		self.pause_crawler(20,variation =6)
 		self.expand_transaction_list()
-		self.ex_trans()
+		self.ex_trans('personal')
+		self.navigate('flist','/friends')
+		self.pause_crawler(20,variation = 3)
+		self.ex_users('personal')
+		self.navigate('coprof',"/Ted-Kim-14")
+		self.pause_crawler(20,variation = 3)
+		self.ex_users('other')
+		self.ex_trans('other')
 #-------------------------------------------------------------------------------			
 			# self.navigate('pprof', self.profile) #go to person profile
 			# self.pause_crawler(20, variation = 6) 

@@ -1,34 +1,10 @@
-#Library used to ATTEMPT to protect privacy 
-#As it currently stands the library seems super redudndant/not that elegant
-# and I might just delete this later
-
-#ALso the unit test code is way longer than all the other stuff haha
 import sys
 import hashlib
 
-
 #NOTE: UTF-8 ENCODING is the same as Byte Literal
-
-# List of guarenteed hasing algorithims in python3
-# blake2b
-# blake2s
-# md5
-# sha1
-# sha224
-# sha256
-# sha384
-# sha3_224
-# sha3_256
-# sha3_384
-# sha3_512
-# sha512
-# shake_128
-# shake_256
-
 #Be careful about what you enter into these functions
 #Cryptographic functions are one-way -
 # meaning we cannot revert/figure out the original input through the output
-
 
 def crypto_hash(input_str: str, encoding='utf-8',algo='sha256'):
 	hash_dict = {
@@ -62,7 +38,7 @@ def hash_username(username: str,encoding='utf-8',algo='sha256'):
 	return crypto_hash((salt_str(username)),encoding=encoding,algo=algo)
 
 #Really ugly, and needs fixing
-def unit_testing(param_fname:str,reference_fname:str,verbose=0):
+def unit_test(param_fname:str,reference_fname:str,verbose=0):
 	param_f = open(param_fname,"r")
 	thashing_algos, tencoding_set, tstring_set = [],[],[]
 	mode = 0 #1 for hashing_algo, 2 for encoding set, 3 for tstring_set
@@ -146,5 +122,5 @@ def unit_testing(param_fname:str,reference_fname:str,verbose=0):
 	return
 
 if __name__ == '__main__':
-	unit_testing("privacy_utility_unittest_param.txt",
+	unit_test("privacy_utility_unittest_param.txt",
 							"privacy_utility_tests.txt",verbose=1)

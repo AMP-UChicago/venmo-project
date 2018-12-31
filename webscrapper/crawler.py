@@ -51,12 +51,12 @@ class activity():
 		self.ps = ps
 
 	def prettyp(self):
-		print("sender: {}, receiver {}, date {}, tagline {}, likes {}, privacy setting: {}"
-			.format(self.sender, self.receiver, self.date, self.desc, self.likes, self.ps))
+		print("sender: {}, receiver {}, date {}, tagline {}, likes {}, privacy setting: {}\n---------------"
+			.format(self.sender, self.receiver, self.date, self.desc, self.nlikes, self.ps))
 
 class alpha_crawler():
 	def __init__(self,prof_un,pause_timer=30,var=5,verbose=True,**html_resources):
-		self.state = Cstate.LOGIN
+		# self.state = Cstate.LOGIN
 		self.profile = "/" + prof_un
 		self.current_profile = ""
 		self.ptimer = pause_timer 
@@ -143,7 +143,6 @@ class alpha_crawler():
 											self.resc['button_class_name'])
 		buttons[1].click()
 		self.cprint("Clicked (Not Now)") #I think this is what they used
-		self.state = Cstate.HOME #Right after you log in, you should be on the home screen
 		self.pause_crawler(self.ptimer,variation=self.var)
 		return;
 
@@ -240,12 +239,69 @@ class alpha_crawler():
 
 		pre = []
 		for x in raw_elements: 
-			pre.append(x.get_attribute('innerHTML'))
+			# pre.append(x.get_attribute('innerHTML'))
+			box_content = BeautifulSoup(x.get_attribute('innerHTML'),'html.parser')
+			unames = box_content.find_all('a')
+			sender = unames[0].get('href')
+			recv = unames[3].get('href')
+			description = (box_content.find('div',style='word-wrap:break-word')).getText().strip()
+			date = (box_content.find('a','gray_link')).getText().strip()
+			rpriv = (box_content.find('div',"tooltip")).getText().strip()
+			print(rpriv)
+			match = re.findall(r'Setting: \w+',rpriv)
+			if(match):
+				# print("have a match")
+				privacy = match[0][8:]
+			print("sender: {} recv: {} text: {} date:{} privacy:{}\n--------".format(sender,recv,description,date,privacy))
 		
-		print(pre)
-		print(len(pre))
-		# print(vars(raw_elements[0]))
-		# print(dir(raw_elements[0]))
+		# pre2 = []
+		# for y in pre: 
+		# 	box_content = BeautifulSoup(y, 'html.parser') #.prettify()
+		# 	# tags = box_content.find_all('a')
+		# 	# sender = tags[0].get('href')
+		# 	# recv = tags[3].get('href')
+		# 	pre2.append(box_content)
+		# 	# trans = box_content.find_all('a')
+		# 	# sender = trans[0].get('href')
+		# 	# recv = trans[3].get('href')
+
+
+		# # print(pre)
+		# print(len(pre))
+		# print(len(pre2))
+
+		# jank = pre2[0].find_all('a')
+		# print(jank[0].get('href'))
+		# print(jank[3].get('href'))
+		# #this doesn't work 
+		# jank2 = pre2[0].find('div',style = 'word-wrap:break-word')
+		# print(jank2)
+		# print(jank2.getText().strip())
+
+		# jank3 = pre2[0].find('a','gray_link')
+		# print(jank3)
+		# print(jank3.getText().strip())
+
+		# jank4 = pre2[0].find('div',"tooltip")
+		# print(jank4)
+		# print(jank4.getText().strip())
+		# #------------------------------------------------
+		# jank5 = pre2[1].find_all('a')
+		# print(jank5[0].get('href'))
+		# print(jank5[3].get('href'))
+
+		# jank6 = pre2[1].find('div',style = 'word-wrap:break-word')
+		# print(jank6)
+		# print(jank6.getText().strip())
+
+		# jank7 = pre2[1].find('a','gray_link')
+		# print(jank7)
+		# print(jank7.getText().strip())
+
+		# jank8 = pre2[1].find('div',"tooltip")
+		# print(jank8)
+		# print(jank8.getText().strip())
+		# print(pre2[1].prettify())
 #--------------------------------------------------------------------------------
 	#This Works -  not sure if this is going to be needed
 	def expand_transaction_list(self):
@@ -296,20 +352,20 @@ class alpha_crawler():
 		self.driver.quit()
 
 	def run(self,v_un,v_pw,email_un,email_pw,imap_url='imap.gmail.com'):
-		try: 
-			self.open_website()
-			self.login(v_un,v_pw)
-			self.click_send_authentication_code()
-			self.pause_crawler(10, variation = 2)
-			auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
-			self.pause_crawler(10, variation = 2)
-			self.enter_authentication_code(auth_code)
-			self.pause_crawler(30,variation=0)
+		# try: 
+		self.open_website()
+		self.login(v_un,v_pw)
+		self.click_send_authentication_code()
+		self.pause_crawler(10, variation = 2)
+		auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
+		self.pause_crawler(10, variation = 2)
+		self.enter_authentication_code(auth_code)
+		self.pause_crawler(30,variation=0)
 
-			self.navigate('pprof', self.profile)
-			self.pause_crawler(20,variation =6)
-			self.expand_transaction_list()
-			self.ex_trans()
+		self.navigate('pprof', self.profile)
+		self.pause_crawler(20,variation =6)
+		self.expand_transaction_list()
+		self.ex_trans()
 #-------------------------------------------------------------------------------			
 			# self.navigate('pprof', self.profile) #go to person profile
 			# self.pause_crawler(20, variation = 6) 
@@ -326,9 +382,9 @@ class alpha_crawler():
 			# self.navigate('flist', "/friends")
 			# self.pause_crawler(20, variation = 6)
 			# self.navigate('logout',"/account/logout")
-		except: 
-			eu.send_email('smtp.gmail.com',email_un,"tedkim97@uchicago.edu",
-										email_pw,"error","hihi test message 2")
+		# except: 
+			# eu.send_email('smtp.gmail.com',email_un,"tedkim97@uchicago.edu",
+										# email_pw,"error","hihi test message 2")
 
 		
 

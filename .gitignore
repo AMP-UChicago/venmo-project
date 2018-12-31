@@ -5,3 +5,7 @@ test.py
 webscrapper/credentials.json
 webscrapper/token.json
 webscrapper/test4.py
+webscrapper/jig.html
+webscrapper/jig2.html 
+webscrapper/config.meme
+webscrapper/transaction.txt

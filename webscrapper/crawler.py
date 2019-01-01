@@ -73,7 +73,7 @@ class alpha_crawler():
 		browser_options.add_argument("--incognito")
 		self.driver = webdriver.Chrome(options=browser_options)
 		return;
-
+#----------------------------------------------------------------------------
 	def open_website(self,x=0,y=0,width=1000,length=800):
 		self.cprint("Opening Website")
 		self.driver.get(self.resc['login-url'])
@@ -171,7 +171,7 @@ class alpha_crawler():
 		self.cprint("Previous profile is now old profile: {}".format(self.prev_profile))
 		self.cprint("Changing profile to: {}".format(nprof))
 		return;
-
+#----------------------------------------------------------------------------
 	def navigate(self,cmd,relative_url):
 		switch = {
 			'logout':(self.click_href, Dstate.LOGGEDOUT, None), 
@@ -199,6 +199,15 @@ class alpha_crawler():
 		self.cprint("Done Navigating")
 		self.pause_crawler(self.ptimer, variation=self.var)
 		return;
+
+	def navf(self,un):
+		self.navigate('coprof',un)
+		if(self.visited.get(un) != None):
+			self.visited[un] = self.visited[un] + 1
+		else: #when se
+			self.visited[un] = 0
+		print("visited: {}! Adding to the visited list".format(un))
+
 
 	#This works, but it doesn't even matter, the users are all pre-loaded onto
 	#the page
@@ -247,9 +256,11 @@ class alpha_crawler():
 					# add_user(fname,temp)
 
 			
-		self.cprint(usernames)
-		self.cprint("length of list = {}".format(a))
+		self.cprint("\tusers here = {}".format(usernames))
+		self.cprint("\tlength of list = {}".format(a))
 		self.cprint("done extracting")
+		self.to_visit.extend(usernames)
+		self.cprint("printing new to_visit: {}".format(self.to_visit))
 		return;
 
 	#there is actually a huge mitake in this 
@@ -303,7 +314,7 @@ class alpha_crawler():
 		self.cprint("Length of extracted list = {}".format(a))
 		self.cprint("done extracting")
 		return;
-
+#----------------------------------------------------------------------------
 	def expand_transaction_list(self):
 		if(not (self.cstate == Dstate.PROFILE or self.cstate == Dstate.PERSONAL)):
 			raise ValueError("Incorrect state: {}".format(self.cstate))
@@ -359,7 +370,7 @@ class alpha_crawler():
 	def exit_browser(self,error_msg):
 		print("Shutting down browser: {}".format(error_msg))
 		self.driver.quit()
-
+#----------------------------------------------------------------------------
 	def run(self,v_un,v_pw,email_un,email_pw,ftrnx,fusr,imap_url='imap.gmail.com'):
 		# try: 
 		self.open_website()
@@ -370,48 +381,72 @@ class alpha_crawler():
 		# self.pause_crawler(10, variation = 2)
 		# self.enter_authentication_code(auth_code)
 		
-		self.pause_crawler(30,variation=0)
+		self.pause_crawler(30,variation=5)
 		self.change_state(Dstate.HOME)
 
-		self.navigate('pprof', self.profile) #go to crawler's profile
-		# self.ex_trans(ftrnx)
-		# self.ex_usr(fusr)
-		self.pause_crawler(20, variation = 6)
-		self.navigate('back', None) #go back to home
-		self.pause_crawler(20, variation = 6)
-		self.navigate('fwd', None) # go back forward to personal profile
-		self.pause_crawler(20, variation = 6)
-
+		# self.navigate('pprof', self.profile)
 		self.navigate('flist','/friends')
-		self.pause_crawler(20, variation = 6)
+		self.pause_crawler(30,variation=10)
+		self.ex_users(fusr)
 
-		self.navigate('coprof','/Ranjan-Guniganti')
-		self.pause_crawler(20, variation = 6)
-		# self.ex_trans(ftrnx)
-		# self.ex_usr(fusr)
-		self.pause_crawler(20, variation = 6)
-		self.navigate('back', None) #go back to home
-		self.pause_crawler(20, variation = 6)
+		self.pause_crawler(20,variation=4)
+		while(self.to_visit):
+			popped = self.to_visit.pop(0)
+			try:
+				self.navf(popped)
+			except:
+				self.to_visit.append(popped)
 
-		self.navigate('coprof','/yyedward')
-		self.pause_crawler(20, variation = 6)
-		# self.ex_trans(ftrnx)
-		# self.ex_usr(fusr)
-		self.pause_crawler(20, variation = 6)
-		self.navigate('back', None) #go back to home
-		self.pause_crawler(20, variation = 6)
+			self.pause_crawler(5,variation=2)
+			self.navigate("back",None)
+			self.pause_crawler(4,variation=2)
 
-		self.navigate('pprof', self.profile) #go bacl to home
-		self.pause_crawler(20, variation = 6)
-		self.navigate('home', "/")		
-		self.pause_crawler(20, variation = 6)
-		self.navigate('back', None) #go back to pprof
-		self.pause_crawler(20, variation = 6)
-		self.navigate('flist', "/friends")
-		self.pause_crawler(20, variation = 6)
-		self.navigate('logout',"/account/logout")
+		print(self.visited)
+		print(len(self.visited))
+		print(self.to_visit)
+		print(len(self.to_visit))
 
+#----------------------------------------------------------------------
+		# self.navigate('pprof', self.profile) #go to crawler's profile
+		# # self.ex_trans(ftrnx)
+		# # self.ex_usr(fusr)
+		# self.pause_crawler(20, variation = 6)
+		# self.navigate('back', None) #go back to home
+		# self.pause_crawler(20, variation = 6)
+		# self.navigate('fwd', None) # go back forward to personal profile
+		# self.pause_crawler(20, variation = 6)
 
+		# self.navigate('flist','/friends')
+		# self.pause_crawler(20, variation = 6)
+
+		# self.navigate('coprof','/Ranjan-Guniganti')
+		# self.pause_crawler(20, variation = 6)
+		# # self.ex_trans(ftrnx)
+		# # self.ex_usr(fusr)
+		# self.pause_crawler(20, variation = 6)
+		# self.navigate('back', None) #go back to home
+		# self.pause_crawler(20, variation = 6)
+
+		# self.navigate('coprof','/yyedward')
+		# self.pause_crawler(20, variation = 6)
+		# # self.ex_trans(ftrnx)
+		# # self.ex_usr(fusr)
+		# self.pause_crawler(20, variation = 6)
+		# self.navigate('back', None) #go back to home
+		# self.pause_crawler(20, variation = 6)
+
+		# self.navigate('pprof', self.profile) #go bacl to home
+		# self.pause_crawler(20, variation = 6)
+		# self.navigate('home', "/")		
+		# self.pause_crawler(20, variation = 6)
+		# self.navigate('back', None) #go back to pprof
+		# self.pause_crawler(20, variation = 6)
+		# self.navigate('flist', "/friends")
+		# self.pause_crawler(20, variation = 6)
+		# self.navigate('logout',"/account/logout")
+#----------------------------------------------------------------------
+
+#----------------------------------------------------------------------
 		# self.navigate('pprof', self.profile)
 		# self.pause_crawler(20,variation =6)
 		# self.ex_trans(ftrnx)
@@ -423,7 +458,7 @@ class alpha_crawler():
 		# self.pause_crawler(20,variation = 3)
 		# self.ex_users(fusr)
 		# self.ex_trans(ftrnx)
-
+#----------------------------------------------------------------------
 
 		# except: 
 			# eu.send_email('smtp.gmail.com',email_un,"tedkim97@uchicago.edu",

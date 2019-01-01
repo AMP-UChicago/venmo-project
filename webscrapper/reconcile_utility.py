@@ -42,3 +42,4 @@ def validate_usr(original,new):
 if __name__ == "__main__":
 	# reduce_usr("three.usr")
 	# validate_file("three1.usr","three.usr")
+	print("done")

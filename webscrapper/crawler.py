@@ -41,11 +41,13 @@ def add_user(fname,usr):
 	file.close()
 	return;
 
+#TODO UPDATE
 def add_transaction(fname,trnx):
 	file = open(fname, "a")
 	file.write("\n")
 	return;
 
+#TODO UPDATE
 def add_transaction_v2(fname,s,r,des,dat,ps):
 	file = open(fname, "a")
 	file.write("sender: {}, receiver: {}, text: {}, date: {} , privacy setting: {}\n".format(s,r,des,dat,ps))
@@ -255,17 +257,42 @@ class alpha_crawler():
 			a = a + 1 
 			# pre.append(x.get_attribute('innerHTML'))
 			box_content = BeautifulSoup(x.get_attribute('innerHTML'),'html.parser')
-			unames = box_content.find_all('a')
-			sender = unames[0].get('href')
-			recv = unames[3].get('href')
-			description = (box_content.find(self.resc['desc_tag'],style=self.resc['desc_style'])).getText().strip()
-			date = (box_content.find(self.resc['date_tag'],self.resc['date_class'])).getText().strip()
-			privacy = "unknown"
+			
 			if(self.cstate == Dstate.PERSONAL):
 				privacy = (box_content.find(self.resc['privacy_tag'],self.resc['privacy_class'])).get(self.resc['privacy_set']).strip()
 
-			add_transaction_v2(fname,sender,recv,description,date,privacy)
-			self.cprint("sender: {} recv: {} text: {} date:{} privacy:{}\n--------".format(sender,recv,description,date,privacy))
+			description = (box_content.find(self.resc['desc_tag'],style=self.resc['desc_style'])).getText().strip()
+			date = (box_content.find(self.resc['date_tag'],self.resc['date_class'])).getText().strip()
+			privacy = "unknown"
+			
+			pd = box_content.find('div','m_five_t p_ten_r').getText() #pdt = pd.getText().replace(" ","")
+			unames = box_content.find_all('a')
+			# payer = unames[0].get('href')
+			# payee = unames[3].get('href')
+
+			first = unames[0].get('href')
+			second = unames[3].get('href')
+
+			if(first == "/" or second == "/"):
+				self.cprint("hit a transaction with a blocked user: skipping\n-------")
+				continue
+
+			paydir = re.findall(r'charged',pd) # probably should make this an ifelse statement
+			if(paydir):
+				payer = second
+				payee = first
+				self.cprint("{} {} {} text: {} date:{} privacy:{}\n--------".format(payee,paydir[0],payer,description,date,privacy))
+
+			paydir2 = re.findall(r'paid',pd)
+			if(paydir2):
+				payer = first
+				payee = second
+				self.cprint("{} {} {} text: {} date:{} privacy:{}\n--------".format(payer,paydir2[0],payee,description,date,privacy))
+
+			# add_transaction_v2(fname,sender,recv,description,date,privacy)
+			# self.cprint("{} {} {} text: {} date:{} privacy:{}\n--------".format(sender,recv,description,date,privacy))
+
+			
 		self.cprint("Length of extracted list = {}".format(a))
 		self.cprint("done extracting")
 		return;
@@ -349,11 +376,11 @@ class alpha_crawler():
 		self.ex_trans(ftrnx)
 		self.navigate('flist','/friends')
 		self.pause_crawler(20,variation = 3)
-		self.ex_users(fusr)
+		# self.ex_users(fusr)
 		# self.navigate('coprof',"/Ted-Kim-14")
 		self.navigate('coprof',"/Ranjan-Guniganti")
 		self.pause_crawler(20,variation = 3)
-		self.ex_users(fusr)
+		# self.ex_users(fusr)
 		self.ex_trans(ftrnx)
 
 

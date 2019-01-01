@@ -246,10 +246,8 @@ class alpha_crawler():
 
 		self.expand_transaction_list()
 	 
-		transactions = []
 		self.cprint("Beginning to extract transaction")
 		raw_elements = self.driver.find_elements_by_class_name(self.resc['transaction_class'])
-		# self.cprint("Length of extracted list = {}".format(len(raw_elements)))
 
 		trns = []
 		a = 0 
@@ -259,6 +257,8 @@ class alpha_crawler():
 			#------Catches and situations where we would not extract--------
 			if(self.cstate == Dstate.PERSONAL):
 				privacy = (box_content.find(self.resc['privacy_tag'],self.resc['privacy_class'])).get(self.resc['privacy_set']).strip()
+
+			unames = box_content.find_all('a')
 
 			first = unames[0].get('href')
 			second = unames[3].get('href')
@@ -274,8 +274,6 @@ class alpha_crawler():
 			privacy = "unknown"
 			
 			pd = box_content.find('div','m_five_t p_ten_r').getText() #pdt = pd.getText().replace(" ","")
-			unames = box_content.find_all('a')
-			
 			paydir = re.findall(r'charged',pd) # probably should make this an ifelse statement
 			if(paydir):
 				payer = second
@@ -318,6 +316,9 @@ class alpha_crawler():
 		if(self.verbose):
 			print(p)
 			return;
+		return;
+
+	def print_state(self):
 		return;
 
 	def pause_crawler(self,sec,variation=0):

@@ -50,7 +50,7 @@ def add_transaction(fname,trnx):
 #TODO UPDATE
 def add_transaction_v2(fname,pyr,pye,des,dat,ps):
 	file = open(fname, "a")
-	file.write("pyr: {}, pye: {}, desc: {}, date: {}, prset {}".format(pyr,pye,des,dat,ps))
+	file.write("pyr: {}, pye: {}, desc: {}, date: {}, prset: {}\n".format(pyr,pye,des,dat,ps))
 	file.close()
 	return;
 
@@ -59,7 +59,12 @@ class alpha_crawler():
 		self.pstate = None
 		self.cstate = None
 		self.profile = "/" + prof_un
-		self.current_profile = ""
+		self.prev_profile = None
+		self.current_profile = None
+
+		self.visited = dict()
+		self.to_visit = list()
+
 		self.ptimer = pause_timer 
 		self.var = var
 		self.verbose = verbose
@@ -156,31 +161,39 @@ class alpha_crawler():
 	def change_state(self, nstate):
 		self.pstate = self.cstate
 		self.cstate = nstate
-		self.cprint("Previous state is now {}".format(self.pstate))
-		self.cprint("Changing state to {}".format(nstate))
+		self.cprint("Previous state is now: {}".format(self.pstate))
+		self.cprint("Changing state to: {}".format(nstate))
+		return;
+
+	def change_profile(self, nprof):
+		self.prev_profile = self.current_profile
+		self.current_profile = nprof
+		self.cprint("Previous profile is now old profile: {}".format(self.prev_profile))
+		self.cprint("Changing profile to: {}".format(nprof))
 		return;
 
 	def navigate(self,cmd,relative_url):
 		switch = {
-			'logout':(self.click_href,Dstate.LOGGEDOUT), #
-			'home':(self.click_href,Dstate.HOME), #
-			'flist':(self.click_href,Dstate.FLIST), # #friendslist
-			'pprof':(self.click_href,Dstate.PERSONAL), # #personal profile
-			'coprof':(self.click_href,Dstate.PROFILE), # #click other profile
-			'fwd': (self.driver.forward,None),
-			'back': (self.driver.back,None)
+			'logout':(self.click_href, Dstate.LOGGEDOUT, None), 
+			'home':(self.click_href, Dstate.HOME, None),
+			'flist':(self.click_href, Dstate.FLIST, None),
+			'pprof':(self.click_href, Dstate.PERSONAL, self.profile), 
+			'coprof':(self.click_href, Dstate.PROFILE, relative_url),
+			'fwd': (self.driver.forward, self.pstate, self.prev_profile),
+			'back': (self.driver.back, self.pstate, self.prev_profile)
 		}
 
-		pair = switch.get(cmd, lambda: self.cprint("invalid command given\n"))
-		exefunc = pair[0]
+		stidx = switch.get(cmd, lambda: self.cprint("invalid command given\n"))
+		exefunc = stidx[0]
 		self.cprint("Beginning Navigation: {}".format(cmd))
 	
-		#I don't like this approach but I think this is the only "cleanish" way to do it for now		
-		if(cmd == 'fwd' or cmd == 'back'):
-			self.change_state(self.pstate) 
+		#I don't like this approach but I think this is the only "compactish" way to do it for now		
+		self.change_state(stidx[1])
+		self.change_profile(stidx[2])
+
+		if(cmd == 'fwd' or cmd == 'back'): 
 			exefunc()
 		else:
-			self.change_state(pair[1])
 			exefunc(relative_url)
 			
 		self.cprint("Done Navigating")
@@ -217,7 +230,7 @@ class alpha_crawler():
 				if(match): #match is an empty list if there are no matches
 					a = a + 1
 					usernames.append(match[0])
-					add_user(fname,match[0])
+					# add_user(fname,match[0])
 
 		else: #the two approaches to extracting friends are very different
 			self.cprint("extracting other profile us")
@@ -231,7 +244,7 @@ class alpha_crawler():
 					#indexing like this will remove the parenthesises
 					temp = "/" + match[0][1:-1]
 					usernames.append(temp)
-					add_user(fname,temp)
+					# add_user(fname,temp)
 
 			
 		self.cprint(usernames)
@@ -286,7 +299,7 @@ class alpha_crawler():
 				payee = second
 				self.cprint("{} {} {} text: {} date:{} privacy:{}\n--------".format(payer,paydir2[0],payee,description,date,privacy))
 
-			add_transaction_v2(fname,payer,payee,description,date,privacy)
+			# add_transaction_v2(fname,payer,payee,description,date,privacy)
 		self.cprint("Length of extracted list = {}".format(a))
 		self.cprint("done extracting")
 		return;
@@ -319,6 +332,14 @@ class alpha_crawler():
 		return;
 
 	def print_state(self):
+		print("------printing state of crawler------")
+		print("\tcrawler account: {}".format(self.profile))
+		print("\tcurrent state: {}".format(self.cstate))
+		print("\tcurrent visited prof {}".format(self.current_profile))
+		print("------printing past state------------")
+		print("\tprevious state: {}".format(self.pstate))
+		print("\tprevious visited prof {}".format(self.prev_profile))
+		print("---------Done Printing State---------")
 		return;
 
 	def pause_crawler(self,sec,variation=0):
@@ -346,38 +367,62 @@ class alpha_crawler():
 		self.click_send_authentication_code()
 		self.pause_crawler(10, variation = 2)
 		# auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
-		self.pause_crawler(10, variation = 2)
+		# self.pause_crawler(10, variation = 2)
 		# self.enter_authentication_code(auth_code)
 		
 		self.pause_crawler(30,variation=0)
 		self.change_state(Dstate.HOME)
 
-		# self.navigate('pprof', self.profile) #go to person profile
-		# self.pause_crawler(20, variation = 6) 
-		# self.navigate('back', None) #go back to home
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('fwd', None) # go back forward to personal profile
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('pprof', self.profile) #go bacl to home
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('home', "/")		
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('back', None) #go back to pprof
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('flist', "/friends")
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('logout',"/account/logout")
-		self.navigate('pprof', self.profile)
-		self.pause_crawler(20,variation =6)
-		self.ex_trans(ftrnx)
+		self.navigate('pprof', self.profile) #go to crawler's profile
+		# self.ex_trans(ftrnx)
+		# self.ex_usr(fusr)
+		self.pause_crawler(20, variation = 6)
+		self.navigate('back', None) #go back to home
+		self.pause_crawler(20, variation = 6)
+		self.navigate('fwd', None) # go back forward to personal profile
+		self.pause_crawler(20, variation = 6)
+
 		self.navigate('flist','/friends')
-		self.pause_crawler(20,variation = 3)
-		self.ex_users(fusr)
-		# self.navigate('coprof',"/Ted-Kim-14")
-		self.navigate('coprof',"/Ranjan-Guniganti")
-		self.pause_crawler(20,variation = 3)
-		self.ex_users(fusr)
-		self.ex_trans(ftrnx)
+		self.pause_crawler(20, variation = 6)
+
+		self.navigate('coprof','/Ranjan-Guniganti')
+		self.pause_crawler(20, variation = 6)
+		# self.ex_trans(ftrnx)
+		# self.ex_usr(fusr)
+		self.pause_crawler(20, variation = 6)
+		self.navigate('back', None) #go back to home
+		self.pause_crawler(20, variation = 6)
+
+		self.navigate('coprof','/yyedward')
+		self.pause_crawler(20, variation = 6)
+		# self.ex_trans(ftrnx)
+		# self.ex_usr(fusr)
+		self.pause_crawler(20, variation = 6)
+		self.navigate('back', None) #go back to home
+		self.pause_crawler(20, variation = 6)
+
+		self.navigate('pprof', self.profile) #go bacl to home
+		self.pause_crawler(20, variation = 6)
+		self.navigate('home', "/")		
+		self.pause_crawler(20, variation = 6)
+		self.navigate('back', None) #go back to pprof
+		self.pause_crawler(20, variation = 6)
+		self.navigate('flist', "/friends")
+		self.pause_crawler(20, variation = 6)
+		self.navigate('logout',"/account/logout")
+
+
+		# self.navigate('pprof', self.profile)
+		# self.pause_crawler(20,variation =6)
+		# self.ex_trans(ftrnx)
+		# self.navigate('flist','/friends')
+		# self.pause_crawler(20,variation = 3)
+		# self.ex_users(fusr)
+		# # self.navigate('coprof',"/Ted-Kim-14")
+		# self.navigate('coprof',"/Ranjan-Guniganti")
+		# self.pause_crawler(20,variation = 3)
+		# self.ex_users(fusr)
+		# self.ex_trans(ftrnx)
 
 
 		# except: 
@@ -410,5 +455,5 @@ if __name__ == "__main__":
 		'privacy_set':'id2'
 	}
 	a = alpha_crawler(cred.v_prof,pause_timer=5,var=1,verbose=True,**html_info)
-	a.run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd,'four.trnx','four.usr')
+	a.run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd,'data/one.trnx','data/one.usr')
 	

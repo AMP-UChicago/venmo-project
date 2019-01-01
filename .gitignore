@@ -1,7 +1,5 @@
-Scratch work/cred.py
 __pycache__
 webscrapper/cred.py
-test.py
 webscrapper/credentials.json
 webscrapper/token.json
 webscrapper/test4.py

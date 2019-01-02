@@ -1,17 +1,23 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 import selenium.common.exceptions
+from bs4 import BeautifulSoup
 from enum import Enum
 import time
 import re
 import random
-from bs4 import BeautifulSoup
+import datetime
+
+import json
+
+#libraries defined in this repository
+import email_utility as eu 
+import privacy_utility as pu 
+
 
 import cred #python file that contains venmo login information
 #This is excluded from the github commit for obvious reasons
 
-import email_utility as eu 
-import privacy_utility as pu 
 
 
 class Dstate(Enum):
@@ -21,19 +27,6 @@ class Dstate(Enum):
 	FLIST = 4
 	PROFILE = 5
 	LOGGEDOUT = 6
-
-class activity():
-	def __init__(self, send, rec, date, description, likes, ps):
-		self.sender = send 
-		self.receiver = rec 
-		self.date = date 
-		self.desc = description 
-		self.nlikes = likes,
-		self.ps = ps
-
-	def prettyp(self):
-		print("sender: {}, receiver {}, date {}, tagline {}, likes {}, privacy setting: {}\n---------------"
-			.format(self.sender, self.receiver, self.date, self.desc, self.nlikes, self.ps))
 
 def add_user(fname,usr):
 	file = open(fname,"a")
@@ -47,14 +40,60 @@ def add_transaction(fname,trnx):
 	file.write("\n")
 	return;
 
-#TODO UPDATE
-def add_transaction_v2(fname,pyr,pye,des,dat,ps):
-	file = open(fname, "a")
-	file.write("pyr: {}, pye: {}, desc: {}, date: {}, prset: {}\n".format(pyr,pye,des,dat,ps))
+def add_transaction_v3(fname,pyr,pye,des,year,month,day,ps):
+	file = open(fname,"a")
+	file.write("pyr: {}, pye: {}, desc: {}, year: {}, month: {}, day: {}, prset: {}\n".format(pyr,pye,des,year,month,day,ps))
 	file.close()
 	return;
 
+#function that helps deal with the weird date-keeping on the site
+#TODO, make sure this works 100%, I am only 99.99% sure it works all the time
+def conv_date(date:str):
+	today = datetime.datetime.now()
+	cday = today.day
+	cmonth = today.month
+	cyear = today.year
+
+	mk = {
+		'january':1,
+		'february':2,
+		'march':3,
+		'april':4,
+		'may':5,
+		'june':6,
+		'july':7,
+		'august':8,
+		'september':9,
+		'october':10,
+		'november':11,
+		'december':12,
+	}
+	proc_str = date.lower()
+
+	edgec = re.findall(r'ago',date)
+	if(edgec):
+		return cyear,cmonth,cday
+
+	month = mk.get((re.findall(r'[a-z]+',proc_str))[0],0)
+
+	regyr = re.findall(r'\d\d\d\d',proc_str)
+	if(regyr):
+		day = int((re.findall(r'\d{1,2}',proc_str))[0])
+		year = int(regyr[0])
+		
+	else:
+		day = int((re.findall(r'\d{1,2}',proc_str))[0])
+		mcur = 100*cmonth + cday 
+		mtrx = 100*month + day
+		if(mtrx > mcur):
+			year = cyear - 1
+		else:
+			year = cyear 
+
+	return year,month,day
+
 class alpha_crawler():
+#----------------------------------------------------------------------------
 	def __init__(self,prof_un,pause_timer=30,var=5,verbose=True,**html_resources):
 		self.pstate = None
 		self.cstate = None
@@ -64,6 +103,7 @@ class alpha_crawler():
 
 		self.visited = dict()
 		self.to_visit = list()
+		self.no_visit = dict()
 
 		self.ptimer = pause_timer 
 		self.var = var
@@ -73,7 +113,7 @@ class alpha_crawler():
 		browser_options.add_argument("--incognito")
 		self.driver = webdriver.Chrome(options=browser_options)
 		return;
-#----------------------------------------------------------------------------
+
 	def open_website(self,x=0,y=0,width=1000,length=800):
 		self.cprint("Opening Website")
 		self.driver.get(self.resc['login-url'])
@@ -171,6 +211,56 @@ class alpha_crawler():
 		self.cprint("Previous profile is now old profile: {}".format(self.prev_profile))
 		self.cprint("Changing profile to: {}".format(nprof))
 		return;
+
+	def cprint(self, p): #CPrint = Crawler Print 
+		if(self.verbose):
+			print(p)
+			return;
+		return;
+
+	def print_state(self):
+		print("------printing state of crawler------")
+		print("\tcrawler account: {}".format(self.profile))
+		print("\tcurrent state: {}".format(self.cstate))
+		print("\tcurrent visited prof {}".format(self.current_profile))
+		print("------printing past state------------")
+		print("\tprevious state: {}".format(self.pstate))
+		print("\tprevious visited prof {}".format(self.prev_profile))
+		print("---------Done Printing State---------")
+		return;
+
+	def pause_crawler(self,sec,variation=0):
+		st = random.uniform(sec-variation,sec+variation)
+		self.cprint("\t\tSleeping for {} secs".format(round(st,3)))
+		time.sleep(st)
+		self.cprint("\t\tDone sleeping")
+		return; 
+
+	def pause_crawler_v2(self):
+		st = random.uniform(self.ptimer - self.var, self.ptimer + self.var)
+		self.cprint("\t\tSleeping for {} secs".format(rounds(st,3)))
+		time.sleep(st)
+		self.cprint("\t\tDone Sleeping")
+		return;
+
+	#make this less useless
+	def exit_browser(self,error_msg):
+		print("Shutting down browser: {}".format(error_msg))
+		self.driver.quit()
+
+	def save_state(self,fname):
+		state = dict()
+		state['pstate'] = self.pstate 
+		state['cstate'] = self.cstate
+		state['profile'] = self.profile
+		state['']
+		self.prev_profile 
+		self.current_profile 
+
+		self.visited
+		self.to_visit 
+		self.no_visit
+
 #----------------------------------------------------------------------------
 	def navigate(self,cmd,relative_url):
 		switch = {
@@ -187,10 +277,9 @@ class alpha_crawler():
 		exefunc = stidx[0]
 		self.cprint("Beginning Navigation: {}".format(cmd))
 	
-		#I don't like this approach but I think this is the only "compactish" way to do it for now		
 		self.change_state(stidx[1])
 		self.change_profile(stidx[2])
-
+		#I don't like this approach but I think this is the only "compactish" way to do it for now		
 		if(cmd == 'fwd' or cmd == 'back'): 
 			exefunc()
 		else:
@@ -208,9 +297,7 @@ class alpha_crawler():
 			self.visited[un] = 0
 		print("visited: {}! Adding to the visited list".format(un))
 
-
-	#This works, but it doesn't even matter, the users are all pre-loaded onto
-	#the page
+	#This works, but it doesn't even matter, the users are all pre-loaded onto the page
 	def click_view_all(self):
 		if(self.cstate != Dstate.PROFILE):
 			raise ValueError("profile does not fit the choices: {}".format(valid_args))
@@ -263,6 +350,27 @@ class alpha_crawler():
 		self.cprint("printing new to_visit: {}".format(self.to_visit))
 		return;
 
+	def expand_transaction_list(self):
+		if(not (self.cstate == Dstate.PROFILE or self.cstate == Dstate.PERSONAL)):
+			raise ValueError("Incorrect state: {}".format(self.cstate))
+
+		#More button: Class = moreButton "More"
+		#More button: Class = moreButton "No more payments"
+		expand_list = True
+		while(expand_list):
+			try:
+				more_button = self.driver.find_element_by_link_text(self.resc['more_href'])
+				more_button.click()
+				self.cprint("\tPressed the (More) button")
+			except selenium.common.exceptions.NoSuchElementException:
+				self.cprint("There is no more (More) buttons to press")
+				expand_list = False
+
+			self.pause_crawler(self.ptimer,variation=self.var)
+
+		self.cprint("Done expanding the transactions on the profile")
+		return;
+
 	#there is actually a huge mitake in this 
 	def ex_trans(self, fname):
 		if(not (self.cstate == Dstate.PERSONAL or self.cstate == Dstate.PROFILE)):
@@ -295,6 +403,7 @@ class alpha_crawler():
 
 			description = (box_content.find(self.resc['desc_tag'],style=self.resc['desc_style'])).getText().strip()
 			date = (box_content.find(self.resc['date_tag'],self.resc['date_class'])).getText().strip()
+			year, month, day = conv_date(date)
 			privacy = "unknown"
 			
 			pd = box_content.find('div','m_five_t p_ten_r').getText() #pdt = pd.getText().replace(" ","")
@@ -302,74 +411,21 @@ class alpha_crawler():
 			if(paydir):
 				payer = second
 				payee = first
-				self.cprint("{} {} {} text: {} date:{} privacy:{}\n--------".format(payee,paydir[0],payer,description,date,privacy))
+				self.cprint("{} {} {} on (m,d,y)=({} , {}, {})\n text: {} \n privacy:{}\n--------".format(payee,paydir[0],payer,month,day,year,description,privacy))
 				
 			paydir2 = re.findall(r'paid',pd)
 			if(paydir2):
 				payer = first
 				payee = second
-				self.cprint("{} {} {} text: {} date:{} privacy:{}\n--------".format(payer,paydir2[0],payee,description,date,privacy))
+				self.cprint("{} {} {} on (m,d,y)=({} , {}, {})\n text: {} \n privacy:{}\n--------".format(payer,paydir2[0],payee,month,day,year,description,privacy))
 
-			# add_transaction_v2(fname,payer,payee,description,date,privacy)
+			add_transaction_v3(fname,payer,payee,description,year,month,day,privacy)
 		self.cprint("Length of extracted list = {}".format(a))
 		self.cprint("done extracting")
 		return;
-#----------------------------------------------------------------------------
-	def expand_transaction_list(self):
-		if(not (self.cstate == Dstate.PROFILE or self.cstate == Dstate.PERSONAL)):
-			raise ValueError("Incorrect state: {}".format(self.cstate))
 
-		#More button: Class = moreButton "More"
-		#More button: Class = moreButton "No more payments"
-		expand_list = True
-		while(expand_list):
-			try:
-				more_button = self.driver.find_element_by_link_text(self.resc['more_href'])
-				more_button.click()
-				self.cprint("\tPressed the (More) button")
-			except selenium.common.exceptions.NoSuchElementException:
-				self.cprint("There is no more (More) buttons to press")
-				expand_list = False
 
-			self.pause_crawler(self.ptimer,variation=self.var)
 
-		self.cprint("Done expanding the transactions on the profile")
-		return;
-
-	def cprint(self, p): #CPrint = Crawler Print 
-		if(self.verbose):
-			print(p)
-			return;
-		return;
-
-	def print_state(self):
-		print("------printing state of crawler------")
-		print("\tcrawler account: {}".format(self.profile))
-		print("\tcurrent state: {}".format(self.cstate))
-		print("\tcurrent visited prof {}".format(self.current_profile))
-		print("------printing past state------------")
-		print("\tprevious state: {}".format(self.pstate))
-		print("\tprevious visited prof {}".format(self.prev_profile))
-		print("---------Done Printing State---------")
-		return;
-
-	def pause_crawler(self,sec,variation=0):
-		st = random.uniform(sec-variation,sec+variation)
-		self.cprint("\t\tSleeping for {} secs".format(round(st,3)))
-		time.sleep(st)
-		self.cprint("\t\tDone sleeping")
-		return; 
-
-	def pause_crawler_v2(self):
-		st = random.uniform(self.ptimer - self.var, self.ptimer + self.var)
-		self.cprint("\t\tSleeping for {} secs".format(rounds(st,3)))
-		time.sleep(st)
-		self.cprint("\t\tDone Sleeping")
-		return;
-
-	def exit_browser(self,error_msg):
-		print("Shutting down browser: {}".format(error_msg))
-		self.driver.quit()
 #----------------------------------------------------------------------------
 	def run(self,v_un,v_pw,email_un,email_pw,ftrnx,fusr,imap_url='imap.gmail.com'):
 		# try: 
@@ -385,30 +441,31 @@ class alpha_crawler():
 		self.change_state(Dstate.HOME)
 
 		# self.navigate('pprof', self.profile)
-		self.navigate('flist','/friends')
-		self.pause_crawler(30,variation=10)
-		self.ex_users(fusr)
+		# self.navigate('flist','/friends')
+		# self.pause_crawler(30,variation=10)
+		# self.ex_users(fusr)
 
-		self.pause_crawler(20,variation=4)
-		while(self.to_visit):
-			popped = self.to_visit.pop(0)
-			try:
-				self.navf(popped)
-			except:
-				self.to_visit.append(popped)
+		# self.pause_crawler(20,variation=4)
+		# while(self.to_visit):
 
-			self.pause_crawler(5,variation=2)
-			self.navigate("back",None)
-			self.pause_crawler(4,variation=2)
+		# 	popped = self.to_visit.pop(0)
+		# 	try:
+		# 		self.navf(popped)
+		# 	except:
+		# 		self.to_visit.append(popped)
 
-		print(self.visited)
-		print(len(self.visited))
-		print(self.to_visit)
-		print(len(self.to_visit))
+		# 	self.pause_crawler(5,variation=2)
+		# 	self.navigate("back",None)
+		# 	self.pause_crawler(4,variation=2)
+
+		# print(self.visited)
+		# print(len(self.visited))
+		# print(self.to_visit)
+		# print(len(self.to_visit))
 
 #----------------------------------------------------------------------
 		# self.navigate('pprof', self.profile) #go to crawler's profile
-		# # self.ex_trans(ftrnx)
+		# self.ex_trans(ftrnx)
 		# # self.ex_usr(fusr)
 		# self.pause_crawler(20, variation = 6)
 		# self.navigate('back', None) #go back to home
@@ -421,7 +478,7 @@ class alpha_crawler():
 
 		# self.navigate('coprof','/Ranjan-Guniganti')
 		# self.pause_crawler(20, variation = 6)
-		# # self.ex_trans(ftrnx)
+		# self.ex_trans(ftrnx)
 		# # self.ex_usr(fusr)
 		# self.pause_crawler(20, variation = 6)
 		# self.navigate('back', None) #go back to home
@@ -429,7 +486,7 @@ class alpha_crawler():
 
 		# self.navigate('coprof','/yyedward')
 		# self.pause_crawler(20, variation = 6)
-		# # self.ex_trans(ftrnx)
+		# self.ex_trans(ftrnx)
 		# # self.ex_usr(fusr)
 		# self.pause_crawler(20, variation = 6)
 		# self.navigate('back', None) #go back to home
@@ -473,7 +530,7 @@ if __name__ == "__main__":
 		'button_class_name':'ladda-label',
 		'auth_html_element':'token',
 		'logout_href':'/account/logout',
-		'friends_href':'/friends',
+		'flist_href':'/friends',
 		'home_href':'/',
 		'more_href':'More',
 		'no_more_payments_href':'No more payments',

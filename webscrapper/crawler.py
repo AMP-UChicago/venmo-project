@@ -66,7 +66,7 @@ def conv_date(date:str):
 		'september':9,
 		'october':10,
 		'november':11,
-		'december':12,
+		'december':12
 	}
 	proc_str = date.lower()
 
@@ -92,6 +92,27 @@ def conv_date(date:str):
 
 	return year,month,day
 
+#TODO, make sure that the crawler then navigates to the state it should be in
+def gen_crawl(jsfname,prof_un,pause_timer=30,var=5,verbose=True,**html_resources):
+	a = alpha_crawler(prof_un,pause_timer=pause_timer,var=var,verbose=verbose,**html_resources)
+	jsf = open(jsfname, "r")
+	data = json.loads(jsf.read())
+	
+	a.pstate = Dstate(data['pstate'])
+	a.cstate = Dstate(data['cstate'])
+	a.profile = data['profile']
+	a.prev_profile = data['prev_profile']
+	a.current_profile = data['current_profile']
+
+	a.visited = data['visited']
+	a.to_visit = data['to_visit']
+	a.no_visit = data['no_visit']
+
+	a.cprint("loaded the crawler data - now confirming")
+	a.print_state()
+	return a;
+
+
 class alpha_crawler():
 #----------------------------------------------------------------------------
 	def __init__(self,prof_un,pause_timer=30,var=5,verbose=True,**html_resources):
@@ -104,6 +125,12 @@ class alpha_crawler():
 		self.visited = dict()
 		self.to_visit = list()
 		self.no_visit = dict()
+		#TODO
+		# self.no_visit = {
+		# 	"a" : "b",
+		# 	"c" : "d",
+		# 	"e" : "d"
+		# }
 
 		self.ptimer = pause_timer 
 		self.var = var
@@ -226,6 +253,10 @@ class alpha_crawler():
 		print("------printing past state------------")
 		print("\tprevious state: {}".format(self.pstate))
 		print("\tprevious visited prof {}".format(self.prev_profile))
+		print("------printing data struct-----------")
+		print("\t{}".format(self.visited))
+		print("\t{}".format(self.to_visit))
+		print("\t{}".format(self.no_visit))
 		print("---------Done Printing State---------")
 		return;
 
@@ -250,16 +281,20 @@ class alpha_crawler():
 
 	def save_state(self,fname):
 		state = dict()
-		state['pstate'] = self.pstate 
-		state['cstate'] = self.cstate
+		state['pstate'] = self.pstate.value
+		state['cstate'] = self.cstate.value
 		state['profile'] = self.profile
-		state['']
-		self.prev_profile 
-		self.current_profile 
+		state['prev_profile'] = self.prev_profile
+		state['current_profile'] = self.current_profile
 
-		self.visited
-		self.to_visit 
-		self.no_visit
+		state['visited'] = self.visited
+		state['to_visit'] = self.to_visit
+		state['no_visit'] = self.no_visit
+
+		f = open(fname, 'w')
+		f.write(json.dumps(state))
+		f.close()
+		return;
 
 #----------------------------------------------------------------------------
 	def navigate(self,cmd,relative_url):
@@ -424,39 +459,41 @@ class alpha_crawler():
 		self.cprint("done extracting")
 		return;
 
-
-
 #----------------------------------------------------------------------------
 	def run(self,v_un,v_pw,email_un,email_pw,ftrnx,fusr,imap_url='imap.gmail.com'):
-		# try: 
-		self.open_website()
-		self.login(v_un,v_pw)
-		self.click_send_authentication_code()
-		self.pause_crawler(10, variation = 2)
-		# auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
-		# self.pause_crawler(10, variation = 2)
-		# self.enter_authentication_code(auth_code)
-		
-		self.pause_crawler(30,variation=5)
-		self.change_state(Dstate.HOME)
+		try: 
+			self.open_website()
+			self.login(v_un,v_pw)
+			self.click_send_authentication_code()
+			self.pause_crawler(10, variation = 2)
+			# auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
+			# self.pause_crawler(10, variation = 2)
+			# self.enter_authentication_code(auth_code)
+			
+			self.pause_crawler(30,variation=5)
+			self.change_state(Dstate.HOME)
+			self.change_profile('')
 
-		# self.navigate('pprof', self.profile)
-		# self.navigate('flist','/friends')
-		# self.pause_crawler(30,variation=10)
-		# self.ex_users(fusr)
+			self.navigate('pprof', self.profile)
+			self.navigate('flist','/friends')
+			self.pause_crawler(30,variation=10)
+			self.ex_users(fusr)
 
-		# self.pause_crawler(20,variation=4)
-		# while(self.to_visit):
+			self.pause_crawler(20,variation=4)
+			while(self.to_visit):
 
-		# 	popped = self.to_visit.pop(0)
-		# 	try:
-		# 		self.navf(popped)
-		# 	except:
-		# 		self.to_visit.append(popped)
+				popped = self.to_visit.pop(0)
+				try:
+					self.navf(popped)
+				except:
+					self.to_visit.append(popped)
 
-		# 	self.pause_crawler(5,variation=2)
-		# 	self.navigate("back",None)
-		# 	self.pause_crawler(4,variation=2)
+				self.pause_crawler(5,variation=2)
+				self.navigate("back",None)
+				self.pause_crawler(4,variation=2)
+		except:
+			print("ran into exception, saving state")
+			self.save_state("one.save")
 
 		# print(self.visited)
 		# print(len(self.visited))
@@ -546,6 +583,7 @@ if __name__ == "__main__":
 		'privacy_class':'audience_button',
 		'privacy_set':'id2'
 	}
-	a = alpha_crawler(cred.v_prof,pause_timer=5,var=1,verbose=True,**html_info)
+	# a = alpha_crawler(cred.v_prof,pause_timer=5,var=1,verbose=True,**html_info)
+	a = gen_crawl("one.save",cred.v_prof,pause_timer=5,var=1,verbose=True,**html_info)
 	a.run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd,'data/one.trnx','data/one.usr')
 	

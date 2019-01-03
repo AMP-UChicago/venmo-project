@@ -102,7 +102,6 @@ def gen_crawl(jsfname,prof_un,pause_timer=30,var=5,verbose=True,**html_resources
 
 
 class alpha_crawler():
-#----------------------------------------------------------------------------
 	def __init__(self,prof_un,pause_timer=30,var=5,verbose=True,**html_resources):
 		self.pstate = None
 		self.cstate = None
@@ -172,7 +171,7 @@ class alpha_crawler():
 		auth_emails = interface.find_emails_from(email_un)
 		auth_text = interface.extract_last_email(auth_emails)
 		print(auth_text)
-		match = re.findall(r'\tverification code is \d\d\d\d\d\d',auth_text)
+		match = re.findall(r'verification code is \d\d\d\d\d\d',auth_text)
 		if(not match):
 			self.cprint('Seems to be an error with getting the auth code')
 			exit()
@@ -283,7 +282,6 @@ class alpha_crawler():
 		f.close()
 		return;
 
-#----------------------------------------------------------------------------
 	def navigate(self,cmd,relative_url):
 		switch = {
 			'logout':(self.click_href, Dstate.LOGGEDOUT, None), 
@@ -330,7 +328,7 @@ class alpha_crawler():
 		self.cprint('\tclicking the (View All) button')
 		return;
 
-	def ex_users(self,fname):
+	def ex_usrs(self,fname):
 		if(not (self.cstate == Dstate.FLIST or self.cstate == Dstate.PROFILE)):
 			raise ValueError('Incorrect state: {}'.format(self.cstate))
 
@@ -350,7 +348,7 @@ class alpha_crawler():
 				if(match): #match is an empty list if there are no matches
 					a = a + 1
 					usernames.append(match[0])
-					add_user(fname,match[0])
+					# add_user(fname,match[0])
 
 		else: 
 			self.cprint('Extracting other profile usn')
@@ -364,7 +362,7 @@ class alpha_crawler():
 					#indexing like this will remove the parenthesises
 					temp = '/' + match[0][1:-1]
 					usernames.append(temp)
-					add_user(fname,temp)
+					# add_user(fname,temp)
 
 			
 		self.cprint('\tusers here = {}'.format(usernames))
@@ -395,7 +393,7 @@ class alpha_crawler():
 		self.cprint('\tDone expanding list on prof')
 		return;
 
-	def ex_trans(self, fname):
+	def ex_trnx(self, fname):
 		if(not (self.cstate == Dstate.PERSONAL or self.cstate == Dstate.PROFILE)):
 			raise ValueError('Incorrect state: {}'.format(self.cstate))
 
@@ -442,48 +440,50 @@ class alpha_crawler():
 				payee = second
 				self.cprint('{} {} {} on (m,d,y)=({} , {}, {})\n text: {} \n privacy:{}\n--------'.format(payer,paydir2[0],payee,month,day,year,description,privacy))
 
-			add_transaction(fname,payer,payee,description,year,month,day,privacy)
+			# add_transaction(fname,payer,payee,description,year,month,day,privacy)
 
 		self.cprint('\tLength of extracted list = {}'.format(a))
 		self.cprint('\tDone extracting')
 		return;
 
-#----------------------------------------------------------------------------
+	def test_run(self,v_un,v_pw,email_un,email_pw,ftrnx,fusr,fsave,imap_url='imap.gmail.com'):
+		print("do nothing for now")
+
 	def run(self,v_un,v_pw,email_un,email_pw,ftrnx,fusr,fsave,imap_url='imap.gmail.com'):
-		try: 
-			self.open_website()
-			self.login(v_un,v_pw)
-			self.click_send_authentication_code()
-			self.pause_crawler(10, variation = 2)
-			# auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
-			# self.pause_crawler(10, variation = 2)
-			# self.enter_authentication_code(auth_code)
+		# try: 
+		# 	self.open_website()
+		# 	self.login(v_un,v_pw)
+		# 	self.click_send_authentication_code()
+		# 	self.pause_crawler(10, variation = 2)
+		# 	auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
+		# 	self.pause_crawler(10, variation = 2)
+		# 	self.enter_authentication_code(auth_code)
 			
-			self.pause_crawler(30,variation=5)
-			self.change_state(Dstate.HOME)
-			self.change_profile('')
+		# 	self.pause_crawler(30,variation=5)
+		# 	self.change_state(Dstate.HOME)
+		# 	self.change_profile('')
 
-			self.navigate('pprof', self.profile)
-			self.navigate('flist','/friends')
-			self.pause_crawler(30,variation=10)
-			self.ex_users(fusr)
+			# self.navigate('pprof', self.profile)
+			# self.navigate('flist','/friends')
+			# self.pause_crawler(30,variation=10)
+			# self.ex_users(fusr)
 
-			self.pause_crawler(20,variation=4)
-			while(self.to_visit):
+			# self.pause_crawler(20,variation=4)
+			# while(self.to_visit):
 
-				dequ = self.to_visit.pop(0)
-				try:
-					self.navf(dequ)
-					self.ex_users(fusr) #TODO
-				except:
-					self.to_visit.append(dequ)
+			# 	dequ = self.to_visit.pop(0)
+			# 	try:
+			# 		self.navf(dequ)
+			# 		self.ex_users(fusr) #TODO
+			# 	except:
+			# 		self.to_visit.append(dequ)
 
-				self.pause_crawler(5,variation=2)
-				self.navigate("back",None)
-				self.pause_crawler(4,variation=2)
-		except Exception as e:
-			print(e)
-			print("ran into exception, saving state")
+			# 	self.pause_crawler(5,variation=2)
+			# 	self.navigate("back",None)
+			# 	self.pause_crawler(4,variation=2)
+		# except Exception as e:
+		# 	print(e)
+		# 	print("ran into exception, saving state")
 			# self.save_state(fsave)
 
 		# print(self.visited)
@@ -492,43 +492,43 @@ class alpha_crawler():
 		# print(len(self.to_visit))
 
 #----------------------------------------------------------------------
-		# self.navigate('pprof', self.profile) #go to crawler's profile
-		# self.ex_trans(ftrnx)
-		# # self.ex_usr(fusr)
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('back', None) #go back to home
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('fwd', None) # go back forward to personal profile
-		# self.pause_crawler(20, variation = 6)
+		self.open_website()
+		self.login(v_un,v_pw)
+		self.click_send_authentication_code()
+		self.pause_crawler(10, variation = 2)
+		auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
+		self.pause_crawler(10, variation = 2)
+		self.enter_authentication_code(auth_code)
+		self.pause_crawler(30,variation=5)
 
-		# self.navigate('flist','/friends')
-		# self.pause_crawler(20, variation = 6)
+		self.navigate('pprof', self.profile) #go to crawler's profile
+		self.ex_trnx(ftrnx)
+		self.ex_usrs(fusr)
+		self.pause_crawler(20, variation = 6)
+		self.navigate('back', None) #go back to home
+		self.pause_crawler(20, variation = 6)
+		self.navigate('fwd', None) # go back forward to personal profile
+		self.pause_crawler(20, variation = 6)
 
-		# self.navigate('coprof','/Ranjan-Guniganti')
-		# self.pause_crawler(20, variation = 6)
-		# self.ex_trans(ftrnx)
-		# # self.ex_usr(fusr)
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('back', None) #go back to home
-		# self.pause_crawler(20, variation = 6)
+		self.navigate('flist','/friends')
+		self.pause_crawler(10, variation = 6)
 
-		# self.navigate('coprof','/yyedward')
-		# self.pause_crawler(20, variation = 6)
-		# self.ex_trans(ftrnx)
-		# # self.ex_usr(fusr)
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('back', None) #go back to home
-		# self.pause_crawler(20, variation = 6)
+		self.navigate('coprof','/Ted-Kim-14') #'/Ranjan-Guniganti'
+		self.pause_crawler(10, variation = 6)
+		self.ex_trnx(ftrnx)
+		self.ex_usrs(fusr)
+		self.pause_crawler(10, variation = 6)
+		self.navigate('back', None) #go back to home
+		self.pause_crawler(10, variation = 6)
 
-		# self.navigate('pprof', self.profile) #go bacl to home
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('home', "/")		
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('back', None) #go back to pprof
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('flist', "/friends")
-		# self.pause_crawler(20, variation = 6)
-		# self.navigate('logout',"/account/logout")
+		self.navigate('coprof','/yyedward')
+		self.pause_crawler(10, variation = 6)
+		self.ex_trnx(ftrnx)
+		self.ex_usrs(fusr)
+		self.pause_crawler(10, variation = 6)
+		self.navigate('back', None) #go back to home
+		self.pause_crawler(10, variation = 6)
+
 #----------------------------------------------------------------------
 
 #----------------------------------------------------------------------

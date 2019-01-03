@@ -450,48 +450,6 @@ class alpha_crawler():
 		print("do nothing for now")
 
 	def run(self,v_un,v_pw,email_un,email_pw,ftrnx,fusr,fsave,imap_url='imap.gmail.com'):
-		# try: 
-		# 	self.open_website()
-		# 	self.login(v_un,v_pw)
-		# 	self.click_send_authentication_code()
-		# 	self.pause_crawler(10, variation = 2)
-		# 	auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
-		# 	self.pause_crawler(10, variation = 2)
-		# 	self.enter_authentication_code(auth_code)
-			
-		# 	self.pause_crawler(30,variation=5)
-		# 	self.change_state(Dstate.HOME)
-		# 	self.change_profile('')
-
-			# self.navigate('pprof', self.profile)
-			# self.navigate('flist','/friends')
-			# self.pause_crawler(30,variation=10)
-			# self.ex_users(fusr)
-
-			# self.pause_crawler(20,variation=4)
-			# while(self.to_visit):
-
-			# 	dequ = self.to_visit.pop(0)
-			# 	try:
-			# 		self.navf(dequ)
-			# 		self.ex_users(fusr) #TODO
-			# 	except:
-			# 		self.to_visit.append(dequ)
-
-			# 	self.pause_crawler(5,variation=2)
-			# 	self.navigate("back",None)
-			# 	self.pause_crawler(4,variation=2)
-		# except Exception as e:
-		# 	print(e)
-		# 	print("ran into exception, saving state")
-			# self.save_state(fsave)
-
-		# print(self.visited)
-		# print(len(self.visited))
-		# print(self.to_visit)
-		# print(len(self.to_visit))
-
-#----------------------------------------------------------------------
 		self.open_website()
 		self.login(v_un,v_pw)
 		self.click_send_authentication_code()
@@ -528,27 +486,6 @@ class alpha_crawler():
 		self.pause_crawler(10, variation = 6)
 		self.navigate('back', None) #go back to home
 		self.pause_crawler(10, variation = 6)
-
-#----------------------------------------------------------------------
-
-#----------------------------------------------------------------------
-		# self.navigate('pprof', self.profile)
-		# self.pause_crawler(20,variation =6)
-		# self.ex_trans(ftrnx)
-		# self.navigate('flist','/friends')
-		# self.pause_crawler(20,variation = 3)
-		# self.ex_users(fusr)
-		# # self.navigate('coprof',"/Ted-Kim-14")
-		# self.navigate('coprof',"/Ranjan-Guniganti")
-		# self.pause_crawler(20,variation = 3)
-		# self.ex_users(fusr)
-		# self.ex_trans(ftrnx)
-#----------------------------------------------------------------------
-
-		# except: 
-			# eu.send_email('smtp.gmail.com',email_un,"tedkim97@uchicago.edu",
-										# email_pw,"error","hihi test message 2")
-
 
 if __name__ == "__main__":
 	html_info = {

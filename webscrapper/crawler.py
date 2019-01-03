@@ -447,9 +447,6 @@ class alpha_crawler():
 		return;
 
 	def test_run(self,v_un,v_pw,email_un,email_pw,ftrnx,fusr,fsave,imap_url='imap.gmail.com'):
-		print("do nothing for now")
-
-	def run(self,v_un,v_pw,email_un,email_pw,ftrnx,fusr,fsave,imap_url='imap.gmail.com'):
 		self.open_website()
 		self.login(v_un,v_pw)
 		self.click_send_authentication_code()
@@ -461,15 +458,15 @@ class alpha_crawler():
 
 		self.navigate('pprof', self.profile) #go to crawler's profile
 		self.ex_trnx(ftrnx)
-		self.ex_usrs(fusr)
-		self.pause_crawler(20, variation = 6)
-		self.navigate('back', None) #go back to home
-		self.pause_crawler(20, variation = 6)
-		self.navigate('fwd', None) # go back forward to personal profile
-		self.pause_crawler(20, variation = 6)
-
 		self.navigate('flist','/friends')
 		self.pause_crawler(10, variation = 6)
+		self.ex_usrs(fusr)
+
+		self.pause_crawler(10, variation = 3)
+		self.navigate('back', None) #go back to home
+		self.pause_crawler(10, variation = 3)
+		self.navigate('fwd', None) # go back forward to personal profile
+		self.pause_crawler(10, variation = 3)
 
 		self.navigate('coprof','/Ted-Kim-14') #'/Ranjan-Guniganti'
 		self.pause_crawler(10, variation = 6)
@@ -483,9 +480,36 @@ class alpha_crawler():
 		self.pause_crawler(10, variation = 6)
 		self.ex_trnx(ftrnx)
 		self.ex_usrs(fusr)
-		self.pause_crawler(10, variation = 6)
+		self.pause_crawler(3, variation = 0)
 		self.navigate('back', None) #go back to home
-		self.pause_crawler(10, variation = 6)
+		self.cprint("done")
+
+	def run(self,v_un,v_pw,email_un,email_pw,ftrnx,fusr,fsave,imap_url='imap.gmail.com'):
+		try:
+			self.open_website()
+			self.login(v_un,v_pw)
+			self.click_send_authentication_code()
+			self.pause_crawler(10, variation = 2)
+			auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
+			self.pause_crawler(10, variation = 2)
+			self.enter_authentication_code(auth_code)
+			self.pause_crawler(20,variation=5)
+			self.navigate('pprof', self.profile) #go to crawler's profile
+			self.ex_trnx(ftrnx)
+			self.navigate('flist','/friends')
+			self.pause_crawler(10, variation = 6)
+			self.ex_usrs(fusr)
+			#Add Other stuff here 
+			self.cprint("add other stuff here")
+
+		except KeyboardInterrupt: 
+			print("CRAWLER EXIT THROUGH KEYBOARD INTERRUPT")
+		except Exception as e:
+			serv = 'smtp.gmail.com'
+			error_add = 'tedkim97@uchicago.edu'
+			subj = '[CRAWLER ERROR]'
+			emsg = 'crawler has entered an exception: {}'.format(e) 
+			eu.send_email(serv,email_un,error_add,email_pw,subj,emsg)
 
 if __name__ == "__main__":
 	html_info = {
@@ -513,5 +537,5 @@ if __name__ == "__main__":
 	}
 	a = alpha_crawler(cred.v_prof,pause_timer=5,var=1,verbose=True,**html_info)
 	# a = gen_crawl("one.save",cred.v_prof,pause_timer=5,var=1,verbose=True,**html_info)
+	# a.test_run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd,'data/one.trnx','data/one.usr','data/one.save')
 	a.run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd,'data/one.trnx','data/one.usr','data/one.save')
-	

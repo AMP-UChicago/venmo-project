@@ -168,7 +168,8 @@ class alpha_crawler():
 
 		#This will also BREAK/Not work if the email does not come from uchicagoamp@gmail.com
 		interface = eu.email_interface(email_un,email_pw,imap_url)
-		auth_emails = interface.find_emails_from(email_un)
+		auth_emails = interface.find_emails_from(email_un) #find emails from the email 
+		#associated with this account 
 		auth_text = interface.extract_last_email(auth_emails)
 		print(auth_text)
 		match = re.findall(r'verification code is \d\d\d\d\d\d',auth_text)

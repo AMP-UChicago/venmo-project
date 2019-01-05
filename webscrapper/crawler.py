@@ -26,12 +26,14 @@ class Dstate(Enum):
 def add_user(fname,usr):
 	file = open(fname,'a')
 	enc_un = pu.hash_username(usr)
-	file.write('{} = {}\n'.format(usr,enc_un))
+	file.write('{} -> {}\n'.format(usr,enc_un))
 	file.close()
 	return;
 
 def add_transaction(fname,pyr,pye,des,year,month,day,ps):
 	file = open(fname,'a')
+	pyr_enc = pu.hash_username(pyr)
+	pye_enc = pu.hash_username(pye)
 	file.write('pyr: {}, pye: {}, desc: {}, year: {}, month: {}, day: {}, prset: {}\n'.format(pyr,pye,des,year,month,day,ps))
 	file.close()
 	return;
@@ -82,15 +84,15 @@ def conv_date(date:str):
 	return year,month,day
 
 #TODO, make sure that the crawler then navigates to the state it should be in
-def gen_crawl(jsfname,prof_un,burl,pause_timer=30,var=5,verbose=True,**html_resources):
-	a = alpha_crawler(prof_un,burl,pause_timer=pause_timer,var=var,verbose=verbose,**html_resources)
+def gen_crawl(jsfname,prof_un,burl,html_resc,pause_timer=30,var=5,verbose=True):
+	a = alpha_crawler(prof_un,burl,html_resc,pause_timer=pause_timer,var=var,verbose=verbose)
 	jsf = open(jsfname, 'r')
 	data = json.loads(jsf.read())
 	
 	a.pstate = Dstate(data['pstate'])
 	a.cstate = Dstate(data['cstate'])
-	a.prev_profile = data['prev_profile']
-	a.current_profile = data['current_profile']
+	a.prev_prof = data['prev_prof']
+	a.curr_prof = data['curr_prof']
 
 	a.visited = data['visited']
 	a.to_visit = set(data['to_visit'])
@@ -101,38 +103,82 @@ def gen_crawl(jsfname,prof_un,burl,pause_timer=30,var=5,verbose=True,**html_reso
 	return a;
 
 class alpha_crawler():
-	def __init__(self,prof_un,burl,pause_timer=30,var=5,verbose=True,**html_resources):
+	def __init__(self,prof_un,burl,pause_timer=30,var=5,verbose=True, html_resc):
 		self.pstate = None
 		self.cstate = None
-		self.profile = '/' + prof_un
-		self.prev_profile = None
-		self.current_profile = None
+		self.personal = '/' + prof_un
+		self.prev_prof = None
+		self.curr_prof = None
 		self.base_url = burl
 
 		self.visited = dict()
+		self.visited_len = 0
 		self.to_visit = set()
+		self.to_visit_len = 0 
+		# self.no_visit = set()
 		self.no_visit = dict()
-		self.to_visit_s  = list()
+		# self.to_visit_s  = list()
+
+		self.locked = False
 
 		self.ptimer = pause_timer 
 		self.var = var
 		self.verbose = verbose
-		self.resc = html_resources
+		self.resc = html_resc
 		browser_options = webdriver.ChromeOptions()
 		browser_options.add_argument('--incognito')
 		self.driver = webdriver.Chrome(options=browser_options)
 		self.cprint('Created Crawler')
 		return;
 
-	def open_website(self,x=0,y=0,width=1000,length=800):
+	#sloppy implementaion
+	def file_init(self,fname):
+		f = open(fname, "r")
+		params = json.loads(f.read())
+		self.crwid = params['crwid']
+		self.base_url = params['base_url']
+		self.ptimer = params['ptimer']
+		self.var = params['var']
+		self.resc = params['resc']
+
+		self.personal = params['personal']
+		self.curr_prof = params['curr_prof']
+		self.prev_prof = params['prev_prof']
+		self.cstate = params['cstate']
+		self.pstate = params['pstate']
+
+		self.to_visit = params['to_visit']
+		self.visited_len = params['visited_len']
+		self.to_visit = set(params['to_visit'])
+		self.to_visit_len = params['to_visit_len']
+		self.no_visit = params['no_visit']
+		
+		self.locked = params['locked']
+		f.close()
+
+		browser_options = webdriver.ChromeOptions()
+		browser_options.add_argument('--incognito')
+		self.driver = webdriver.Chrome(options=browser_options)
+		
+		if(self.curr_prof != None):
+			self.skip_to_url(self.curr_prof)
+
+		self.cprint("Done Initializing")
+		self.print_state()
+		return;
+
+#------------------------------------------------------------------------------
+	#final
+	def open_website(self,xpos=0,ypos=0,width=800,length=800):
 		self.cprint('\tOpening Website')
 		self.driver.get(self.resc['login-url'])
 		self.driver.set_window_size(width,length)
-		self.driver.set_window_position(x,y)
+		self.driver.set_window_position(xpos,ypos)
 		self.change_state(Dstate.LOGIN)
 		self.pause_crawler(self.ptimer,variation=self.var)
 		return;
 
+	#final
 	def login(self,username,password):
 		uname_ele = self.resc['username_html_element']
 		pword_ele = self.resc['password_html_element']
@@ -152,6 +198,7 @@ class alpha_crawler():
 		self.pause_crawler(self.ptimer,variation=self.var)
 		return;
 
+	#final
 	def click_send_authentication_code(self):
 		send_auth_code_button=self.driver.find_element_by_class_name(self.resc['button_class_name'])
 		send_auth_code_button.click()
@@ -159,6 +206,7 @@ class alpha_crawler():
 		self.pause_crawler(self.ptimer,variation=self.var)
 		return;
 
+	#final
 	def get_authentication_code(self,email_un,email_pw,imap_url):
 		#Keep in mind that the structure of a venmo auth code is 
 		#"Your Venmo verification code is XXXXXX" (6 numbers)
@@ -183,6 +231,7 @@ class alpha_crawler():
 			self.pause_crawler(self.ptimer, variation=self.var)
 			return ac
 
+	#final
 	def enter_authentication_code(self, code:str):
 		auth_code = self.driver.find_element_by_name(self.resc['auth_html_element'])
 		auth_code.send_keys(code)
@@ -199,6 +248,7 @@ class alpha_crawler():
 		self.pause_crawler(self.ptimer,variation=self.var)
 		return;
 
+	#final
 	def change_state(self, nstate):
 		self.pstate = self.cstate
 		self.cstate = nstate
@@ -206,10 +256,11 @@ class alpha_crawler():
 		self.cprint('Changing state to: {}'.format(nstate))
 		return;
 
+	#final
 	def change_profile(self, nprof):
-		self.prev_profile = self.current_profile
-		self.current_profile = nprof
-		self.cprint('Previous profile is now old profile: {}'.format(self.prev_profile))
+		self.prev_prof = self.curr_prof
+		self.curr_prof = nprof
+		self.cprint('Previous profile is now old profile: {}'.format(self.prev_prof))
 		self.cprint('Changing profile to: {}'.format(nprof))
 		return;
 
@@ -221,16 +272,16 @@ class alpha_crawler():
 
 	def print_state(self):
 		print('------printing state of crawler------')
-		print('crawler account: {}'.format(self.profile))
+		print('crawler personal: {}'.format(self.personal))
+		print('crawler id: {}'.format(self.crwid))
 		print('current state: {}'.format(self.cstate))
-		print('current visited prof {}'.format(self.current_profile))
+		print('current visited prof {}'.format(self.curr_prof))
 		print('------printing past state------------')
 		print('previous state: {}'.format(self.pstate))
-		print('previous visited prof {}'.format(self.prev_profile))
+		print('previous visited prof {}'.format(self.prev_prof))
 		print('------printing data struct-----------')
-		print('VISITED = {}'.format(self.visited))
-		print('TO VISIT = {}'.format(self.to_visit))
-		print('NO VISIT = {}'.format(self.no_visit))
+		print('NUM VISITED = {}'.format(self.visited_len))
+		print('NUM TO VISIT = {}'.format(self.to_visit_len))
 		print('---------Done Printing State---------')
 		return;
 
@@ -259,23 +310,45 @@ class alpha_crawler():
 	def exit_browser(self,error_msg):
 		print('Shutting down browser: {}'.format(error_msg))
 		self.driver.quit()
+#------------------------------------------------------------------------------
 
 	def save_state(self,fname):
 		state = dict()
 		#ENUMS can't be json serialized
+		state['crwid'] = self.crwid
+		state['base_url'] = params['base_url']
+		state['ptimer'] = self.ptimer
+		state['var'] = self.var
+		state['resc'] = self.resc
+
+		state['personal'] = self.personal
 		state['pstate'] = self.pstate.value 
 		state['cstate'] = self.cstate.value
-		state['prev_profile'] = self.prev_profile
-		state['current_profile'] = self.current_profile
+		state['prev_prof'] = self.prev_prof
+		state['curr_prof'] = self.curr_prof
 
 		state['visited'] = self.visited
+		state['visited_len'] = self.visited_len
 		#Sets can also not be JSON serialized
 		state['to_visit'] = list(self.to_visit)
+		state['to_visit_len'] = self.to_visit_len
 		state['no_visit'] = self.no_visit
+
+		state['locked'] = self.locked
 
 		f = open(fname, 'w')
 		f.write(json.dumps(state))
 		f.close()
+		return;
+
+	def click_view_all(self):
+		if(self.cstate != Dstate.PROFILE):
+			raise ValueError('profile does not fit the choices: {}'.format(valid_args))
+
+		buttons = self.driver.find_elements_by_partial_link_text('View All')
+		for x in buttons:
+			x.click()
+		self.cprint('\tclicked all the (View All) button')
 		return;
 
 	def click_href(self, relative_url):
@@ -285,7 +358,9 @@ class alpha_crawler():
 		link.click()
 		return;
 
-	def skip_to_prof(self, un):
+	#Even though this can skip to any url, it shall ONLY be used to skip to a prof
+	#which is why it is set up in this context 
+	def skip_to_url(self, un):
 		self.change_state(Dstate.PROFILE)
 		self.change_profile(un)
 		self.driver.get(self.base_url + un)
@@ -303,16 +378,43 @@ class alpha_crawler():
 		plink.click()
 		return;
 
+	def check_limited(self):
+		try:
+			self.driver.find_element_by_xpath('//*[contains(text(),"{}")]'.format(self.resc['lim']))
+		except selenium.common.exceptions.NoSuchElementException:
+			return;
+		self.locked = True
+		self.cprint("hit a rate limie, killing process")
+		exit()
+	
+	def check_disconnect(self):
+		try:
+			self.driver.find_element_by_xpath('//*[contains(text(),"{}"]'.format(self.resc['502']))
+		except:
+			return;
+		self.cprint("hit a bad gateway, refreshing")
+		self.driver.refresh()
+		return;
+
+	def check_invalid(self):
+		try: 
+			self.driver.find_element_by_xpath('//*[contains(text(),"{}")]'.format(self.resc['bad_url']))
+		except: 
+			return;
+		self.cprint("invalid url, going back")
+		self.navigate('back',None)
+		return;
+
 	#THIS FUNCTION STARTED CLEAN AND ELEGANT, BUT GOT REALLY COMPLICATED
 	def navigate(self,cmd,relative_url):
 		switch = {
 			'logout':(Dstate.LOGGEDOUT, None, self.click_href), 
 			'home':(Dstate.HOME, None, self.click_href),
 			'flist':(Dstate.FLIST, None, self.click_href),
-			'pprof':(Dstate.PERSONAL, self.profile, self.click_href), 
+			'pprof':(Dstate.PERSONAL, self.personal, self.click_href), 
 			'coprof':(Dstate.PROFILE, relative_url, self.click_href, self.click_img),
-			'fwd': (self.pstate, self.prev_profile, self.driver.forward),
-			'back': (self.pstate, self.prev_profile, self.driver.back)
+			'fwd': (self.pstate, self.prev_prof, self.driver.forward),
+			'back': (self.pstate, self.prev_prof, self.driver.back)
 		}
 
 		if(cmd == "coprof" and self.cstate == Dstate.PERSONAL):
@@ -324,10 +426,10 @@ class alpha_crawler():
 			self.change_profile(relative_url)
 			return;
 
-		if(relative_url == self.profile):
-			self.click_href(self.profile)
+		if(relative_url == self.personal):
+			self.click_href(self.personal)
 			self.change_state(Dstate.PERSONAL)
-			self.change_profile(self.profile)
+			self.change_profile(self.personal)
 			self.cprint("Special Situation, navigating back to personal")
 			return; 
 
@@ -354,8 +456,11 @@ class alpha_crawler():
 		self.pause_crawler(self.ptimer, variation=self.var)
 		return;
 
-	def navp(self,un):
-		self.navigate('coprof',un)
+	def navp_simple(self,un):
+		try:
+			self.navigate('coprof',un)
+		except: 
+			self.skip_to_url(un)
 
 		now = datetime.datetime.now()
 		year,month,day = now.year, now.month, now.day  
@@ -364,19 +469,34 @@ class alpha_crawler():
 			# self.visited[un] = self.visited[un] + 1
 			print('\tvisited: {} AGAIN Updating last visit'.format(un))
 		else:
-			# self.visited[un] = 0
+			self.visited_len += 1
 			print('\tvisited: {}! Adding to the visited list'.format(un))
 
 		self.visited[un] = (year,month,day)
 
-	def click_view_all(self):
-		if(self.cstate != Dstate.PROFILE):
-			raise ValueError('profile does not fit the choices: {}'.format(valid_args))
+	def navpet(self,un,fname):
+		if(self.no_visit.get(fname,None) != None):
+			self.cprint("hit someone on the no_visit list: {} SKIPPING".format(un))
+			return;
 
-		buttons = self.driver.find_elements_by_partial_link_text('View All')
-		for x in buttons:
-			x.click()
-		self.cprint('\tclicked all the (View All) button')
+		try:
+			self.navigate('coprof',un)
+		except selenium.common.exceptions.NoSuchElementException:
+			self.skip_to_url(un)
+
+		now = datetime.datetime.now()
+		year,month,day = now.year, now.month, now.day  
+
+		if(self.visited.get(un) != None):
+			# self.visited[un] = self.visited[un] + 1
+			self.cprint('\tvisited: {} AGAIN Updating last visit'.format(un))
+		else:
+			self.visited_len += 1
+			self.cprint('\tvisited: {}! Adding to the visited list'.format(un))
+			self.ex_usrs(fname)
+			self.cprint('EXTRACTING!')
+
+		self.visited[un] = (year,month,day)
 		return;
 
 	def ex_usrs(self,fname):
@@ -394,34 +514,36 @@ class alpha_crawler():
 			parsed_elements = page_content.find_all('a')
 
 			for element in parsed_elements:
-				
 				match = re.findall(r'[/][\w|\W]+',element.get('href'))
 				if(match): #match is an empty list if there are no matches
 					a = a + 1
 					usernames.add(match[0])
+					# self.to_visit.add(match[0])
 					# add_user(fname,match[0])
 
 		else: 
 			self.cprint('Extracting other profile usn')
+
 			fs = self.driver.find_elements_by_class_name(self.resc['friend_image'])
 			for nested_element in fs:
-				
 				user = nested_element.get_attribute(self.resc['friend_image_details'])
 				match = re.findall(r'\([\w|\W]+\)',user)
 				if(match):
-					a = a + 1
 					#indexing like this will remove the parenthesises
 					temp = '/' + match[0][1:-1]
-					usernames.add(temp)
+					if(self.visited.get(temp,None) == None):
+						usernames.add(temp)
+					# self.to_visit.add(temp)
 					# add_user(fname,temp)
 
-			
-		self.cprint('\tusers here = {}'.format(usernames))
-		self.cprint('\tlength of list (this will not be accurate) = {}'.format(a))
-		self.cprint('Done extracting')
-		self.to_visit = ((self.to_visit)|usernames)
+			a = len(usernames)
+
+		if(a == 0):
+			raise ValueError("Number of extracted friends should not be 0, possible error")
+
+		self.cprint('\tlength of list = {}'.format(a))
+		self.to_visit = (self.to_visit|usernames)
 		self.cprint('adding users to the TO_VISIT pile')
-		# self.cprint('printing new to_visit: {}'.format(self.to_visit))
 		return;
 
 	def expand_transaction_list(self):
@@ -498,102 +620,88 @@ class alpha_crawler():
 		self.cprint('\tDone extracting')
 		return;
 
-	def test_search1(self):
-		while(self.to_visit):
-			dequ = self.to_visit.pop()
-			try:
-				self.navp(dequ)
-				self.ex_usrs(fusr) #TODO
-			except:
-				self.to_visit.add(dequ)
-				self.cprint("adding dequ back to the set")
+	def pogo_search(self, fusr,limit = 100):
+		self.navigate('pprof', self.personal)
+		# self.ex_trnx()
+		self.pause_crawler(3,variation = 1)
+		self.navigate('flist','/friends')
+		self.pause_crawler(3,variation = 1)
+		self.ex_usrs(fusr)
 
-			self.pause_crawler(3,variation=1)
-			# self.navigate("back",None)
-			# self.pause_crawler(3,variation=1)
-
-	def random_search(self,ftrnx,fusr):
 		while(self.to_visit):
-			try:
-				deque = self.to_visit.pop()
-				self.navp(dequ)
-				self.ex_usrs()
-				self.ex_trnx(ftrnx)
-			except:
+			if(self.visited_len >= limit):
 				break
 
-	def the_worst_search(self):
-		while(self.to_visit):
-			try:
-				dequ = self.to_visit.pop()
-				self.navp(dequ)
-				self.ex_usrs(fusr) #TODO
-			except:
-				break
-				# print("the list is somehow empty")
-				# self.to_visit.add(dequ)
-			
-			self.pause_crawler(3,variation=1)
-		self.cprint("end")
+			try: 
+				rand = self.to_visit.pop()
+				self.navpet(rand, fusr)
+				# self.ex_trnx()
+			except KeyError: 
+				self.cprint("List is empty - Conclusion")
+				self.exit_browser("No error - completely fine")
+				exit()
+
+			self.pause_crawler(5, variation = 1)
+			print("length of visited = {}".format(self.visited_len))
+
+			self.check_limited()
+			self.check_disconnect()
+			self.check_invalid()
+
+		self.cprint("Reached the limit")
+
+
 
 	def test_run(self,v_un,v_pw,email_un,email_pw,ftrnx,fusr,fsave,imap_url='imap.gmail.com'):
-		try:
-			self.open_website()
-			self.login(v_un,v_pw)
-			self.click_send_authentication_code()
-			self.pause_crawler(10, variation = 2)
-			auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
-			self.pause_crawler(10, variation = 2)
-			self.enter_authentication_code(auth_code)
-			self.pause_crawler(10,variation=2)
-			self.navigate('pprof', self.profile)
-			self.navigate('flist','/friends')
-			self.pause_crawler(10,variation=10)
-			self.ex_usrs(fusr)
+		# try:
+		self.open_website()
+		self.login(v_un,v_pw)
+		self.click_send_authentication_code()
+		self.pause_crawler(20, variation = 2)
+		auth_code=self.get_authentication_code(email_un,email_pw,imap_url)
+		self.pause_crawler(10, variation = 2)
+		self.enter_authentication_code(auth_code)
+		self.pause_crawler(10,variation=2)
 
-			# self.pause_crawler(10,variation=2)
+		self.pogo_search(fusr)
+		# self.navigate('pprof', self.personal)
+		# self.navigate('flist','/friends')
+		# self.pause_crawler(10,variation=10)
+		# self.ex_usrs(fusr)
 
-			# while(self.to_visit):
-			# 	dequ = self.to_visit.pop()				
-			# 	self.navp(dequ)
-			# 	self.ex_usrs(fusr) #TODO
-			# 	self.pause_crawler(3,variation=1)
-			# 	# self.navigate("back",None)
-			# 	# self.pause_crawler(3,variation=1)
-
-			# self.navigate('coprof','/Ted-Kim-14')
-			# self.pause_crawler(2,variation=0) 
-			self.navigate('coprof','/yyedward')
-			self.pause_crawler(2,variation=0)
-			self.navigate('coprof','/Ranjan-Guniganti')
-			self.pause_crawler(2,variation=0)
-			self.navigate('coprof','/Peter-Angkasith') 
-			self.pause_crawler(2,variation=0)
-			self.navigate('coprof','/heatherweller') 
-			self.pause_crawler(2,variation=0)
-			self.navigate('coprof','/Ranjan-Guniganti')
-			self.pause_crawler(2,variation=0)
-			self.navigate('coprof','/Chiho-Im')
-			self.pause_crawler(2,variation=0)
+		# self.navigate('coprof','/Ted-Kim-14')
+		# self.pause_crawler(2,variation=0) 
+		# self.navigate('coprof','/yyedward')
+		# self.pause_crawler(2,variation=0)
+		# self.navigate('coprof','/Ranjan-Guniganti')
+		# self.pause_crawler(2,variation=0)
+		# self.navigate('coprof','/Peter-Angkasith') 
+		# self.pause_crawler(2,variation=0)
+		# self.navpet('/heatherweller',fusr) 
+		# self.pause_crawler(2,variation=0)
+		# self.navigate('coprof','/Ranjan-Guniganti')
+		# self.pause_crawler(2,variation=0)
+		# self.navigate('coprof','/Chiho-Im')
+		# self.pause_crawler(2,variation=0)
 
 
-		except KeyboardInterrupt: 
-			# self.save_state(fsave)
-			print("saved the crawler")
-			print("CRAWLER EXIT THROUGH KEYBOARD INTERRUPT")
+		# except KeyboardInterrupt: 
+		# 	self.save_state(fsave)
+		# 	print("saved the crawler")
+		# 	print("CRAWLER EXIT THROUGH KEYBOARD INTERRUPT")
 
-		except Exception as e:
-			serv = 'smtp.gmail.com'
-			error_add = 'tedkim97@uchicago.edu'
-			subj = '[CRAWLER ERROR]'
-			emsg = 'Crawler has entered an exception: {}'.format(e) 
-			# eu.send_email(serv,email_un,error_add,email_pw,subj,emsg)
-			print(emsg)
-			print("sent an error email")
-			# self.save_state(fsave)
-			print("saved the crawler")
+		# except Exception as e:
+		# 	serv = 'smtp.gmail.com'
+		# 	error_add = 'tedkim97@uchicago.edu'
+		# 	subj = '[CRAWLER ERROR]'
+		# 	emsg = 'Crawler has entered an exception: {}'.format(e) 
+		# 	# eu.send_email(serv,email_un,error_add,email_pw,subj,emsg)
+		# 	print(emsg)
+		# 	print("sent an error email")
+		# 	self.save_state(fsave)
+		# 	print("saved the crawler")
 			
-		self.cprint("done")
+		# self.cprint("done")
 
 	def run(self,v_un,v_pw,email_un,email_pw,ftrnx,fusr,fsave,imap_url='imap.gmail.com'):
 		try:
@@ -605,7 +713,7 @@ class alpha_crawler():
 			self.pause_crawler(10, variation = 2)
 			self.enter_authentication_code(auth_code)
 			self.pause_crawler(20,variation=5)
-			self.navigate('pprof', self.profile) #go to crawler's profile
+			self.navigate('pprof', self.personal) #go to crawler's profile
 			self.ex_trnx(ftrnx)
 			self.navigate('flist','/friends')
 			self.pause_crawler(10, variation = 6)
@@ -646,9 +754,12 @@ if __name__ == "__main__":
 		'date_class':'gray_link',
 		'privacy_tag':'span',
 		'privacy_class':'audience_button',
-		'privacy_set':'id2'
+		'privacy_set':'id2', 
+		'lim':'maximum number of profile page views in an hour',
+		'502':'502 Bad Gateway',
+		'bad_url':'the page you requested does not exist'
 	}
-	a = alpha_crawler(cred.v_prof,cred.burl,pause_timer=5,var=1,verbose=True,**html_info)
+	# a = alpha_crawler(cred.v_prof,cred.burl,html_info,pause_timer=5,var=1,verbose=True)
 	# a = gen_crawl("one.save",cred.v_prof,pause_timer=5,var=1,verbose=True,**html_info)
-	a.test_run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd,'data/one.trnx','data/one.usr','data/one.save')
+	# a.test_run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd,'data/one.trnx','data/one.usr','data/three.save')
 	# a.run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd,'data/one.trnx','data/one.usr','data/one.save')

@@ -9,4 +9,6 @@ webscrapper/data
 webscrapper/dates
 webscrapper/lr
 webscrapper/dates2
-webscrapper/crawler.py
+webscrapper/config.json
+webscrapper/crawler.params
+webscrapper/crawler.cred

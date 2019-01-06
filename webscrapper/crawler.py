@@ -102,6 +102,8 @@ class alpha_crawler():
 		self.visited_len = 0
 		self.to_visit = None
 		self.to_visit_len = 0
+		self.to_visit_q = None
+		self.to_visit_q_len = 0
 		self.no_visit = None
 
 		self.locked = False
@@ -753,44 +755,6 @@ class alpha_crawler():
 		self.pause_crawler(10,variation=2)
 
 		self.pogo_search(fusr)
-		# self.navigate('pprof', self.personal)
-		# self.navigate('flist','/friends')
-		# self.pause_crawler(10,variation=10)
-		# self.ex_usrs(fusr)
-
-		# self.navigate('coprof','/Ted-Kim-14')
-		# self.pause_crawler(2,variation=0) 
-		# self.navigate('coprof','/yyedward')
-		# self.pause_crawler(2,variation=0)
-		# self.navigate('coprof','/Ranjan-Guniganti')
-		# self.pause_crawler(2,variation=0)
-		# self.navigate('coprof','/Peter-Angkasith') 
-		# self.pause_crawler(2,variation=0)
-		# self.navpet('/heatherweller',fusr) 
-		# self.pause_crawler(2,variation=0)
-		# self.navigate('coprof','/Ranjan-Guniganti')
-		# self.pause_crawler(2,variation=0)
-		# self.navigate('coprof','/Chiho-Im')
-		# self.pause_crawler(2,variation=0)
-
-
-		# except KeyboardInterrupt: 
-		# 	self.save_state(fsave)
-		# 	print("saved the crawler")
-		# 	print("CRAWLER EXIT THROUGH KEYBOARD INTERRUPT")
-
-		# except Exception as e:
-		# 	serv = 'smtp.gmail.com'
-		# 	error_add = 'tedkim97@uchicago.edu'
-		# 	subj = '[CRAWLER ERROR]'
-		# 	emsg = 'Crawler has entered an exception: {}'.format(e) 
-		# 	# eu.send_email(serv,email_un,error_add,email_pw,subj,emsg)
-		# 	print(emsg)
-		# 	print("sent an error email")
-		# 	self.save_state(fsave)
-		# 	print("saved the crawler")
-			
-		# self.cprint("done")
 
 	def run(self,v_un,v_pw,email_un,email_pw,ftrnx,fusr,fsave,imap_url='imap.gmail.com'):
 		try:

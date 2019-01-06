@@ -80,8 +80,8 @@ def unit_testing():
 if __name__ == "__main__":
 	username = cred.v_email_un 
 	password = cred.v_email_pd
-
-	send_email('smtp.gmail.com',username,"tedkim97@uchicago.edu",password,"error","hihi test message 2")
+	test2 = ["tedkim97@uchicago.edu", "tedkim97@gmail.com"]
+	send_email('smtp.gmail.com',username,test2,password,"error","hihi test message 2")
 	# a = email_interface(username,password,'imap.gmail.com')
 	# messages = a.find_emails_from('uchicagoamp@gmail.com')
 	# print(a.extract_last_email(messages)) 

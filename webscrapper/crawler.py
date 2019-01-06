@@ -34,7 +34,7 @@ def add_transaction(fname,pyr,pye,des,year,month,day,ps):
 	file = open(fname,'a')
 	pyr_enc = pu.hash_username(pyr)
 	pye_enc = pu.hash_username(pye)
-	file.write('pyr: {}, pye: {}, desc: {}, year: {}, month: {}, day: {}, prset: {}\n'.format(pyr,pye,des,year,month,day,ps))
+	file.write('pyr: {}, pye: {}, desc: {}, year: {}, month: {}, day: {}, prset: {}\n'.format(pyr_enc,pye_enc,des,year,month,day,ps))
 	file.close()
 	return;
 
@@ -79,60 +79,63 @@ def conv_date(date:str):
 		if(mtrx > mcur):
 			year = cyear - 1
 		else:
-			year = cyear 
+			year = cyear
 
 	return year,month,day
 
-#TODO, make sure that the crawler then navigates to the state it should be in
-def gen_crawl(jsfname,prof_un,burl,html_resc,pause_timer=30,var=5,verbose=True):
-	a = alpha_crawler(prof_un,burl,html_resc,pause_timer=pause_timer,var=var,verbose=verbose)
-	jsf = open(jsfname, 'r')
-	data = json.loads(jsf.read())
-	
-	a.pstate = Dstate(data['pstate'])
-	a.cstate = Dstate(data['cstate'])
-	a.prev_prof = data['prev_prof']
-	a.curr_prof = data['curr_prof']
-
-	a.visited = data['visited']
-	a.to_visit = set(data['to_visit'])
-	a.no_visit = data['no_visit']
-
-	a.cprint('loaded the crawler data - now confirming')
-	a.print_state()
-	return a;
-
 class alpha_crawler():
-	def __init__(self,prof_un,burl,pause_timer=30,var=5,verbose=True, html_resc):
-		self.pstate = None
-		self.cstate = None
-		self.personal = '/' + prof_un
-		self.prev_prof = None
-		self.curr_prof = None
-		self.base_url = burl
+	def __init__(self,pause_timer=20,var=2,verbose=True):
+		self.crwid = None
+		self.base_url = None
+		self.ptimer = pause_timer
+		self.var = var
+		self.resc = None
+		self.verbose = verbose
 
-		self.visited = dict()
+		self.personal = None
+		self.curr_prof = None
+		self.prev_prof = None
+		self.cstate = None
+		self.pstate = None
+
+		self.visited = None
 		self.visited_len = 0
-		self.to_visit = set()
-		self.to_visit_len = 0 
-		# self.no_visit = set()
-		self.no_visit = dict()
-		# self.to_visit_s  = list()
+		self.to_visit = None
+		self.to_visit_len = 0
+		self.no_visit = None
 
 		self.locked = False
 
-		self.ptimer = pause_timer 
-		self.var = var
-		self.verbose = verbose
-		self.resc = html_resc
 		browser_options = webdriver.ChromeOptions()
 		browser_options.add_argument('--incognito')
 		self.driver = webdriver.Chrome(options=browser_options)
 		self.cprint('Created Crawler')
 		return;
 
-	#sloppy implementaion
-	def file_init(self,fname):
+	def load_properties_man(self,crwid,prof,burl,html_resc,pause_timer,var,verbose):
+		self.crwid = crwid
+		self.base_url = burl
+		self.ptimer = pause_timer
+		self.var = var
+		self.resc = html_resc
+		self.verbose = verbose
+
+		self.personal = prof
+		self.curr_prof = None
+		self.prev_prof = None
+		self.cstate = None
+		self.pstate = None
+
+		self.visited = dict()
+		self.visited_len = 0
+		self.to_visit = set()
+		self.to_visit_len = 0
+		self.no_visit = dict()
+
+		self.locked = False
+		return;
+	#initializing an instance from a file
+	def load_properties(self,fname):
 		f = open(fname, "r")
 		params = json.loads(f.read())
 		self.crwid = params['crwid']
@@ -140,6 +143,7 @@ class alpha_crawler():
 		self.ptimer = params['ptimer']
 		self.var = params['var']
 		self.resc = params['resc']
+		self.verbose = params['verbose']
 
 		self.personal = params['personal']
 		self.curr_prof = params['curr_prof']
@@ -147,24 +151,21 @@ class alpha_crawler():
 		self.cstate = params['cstate']
 		self.pstate = params['pstate']
 
-		self.to_visit = params['to_visit']
+		self.visited = params['visited']
 		self.visited_len = params['visited_len']
 		self.to_visit = set(params['to_visit'])
 		self.to_visit_len = params['to_visit_len']
 		self.no_visit = params['no_visit']
-		
+
 		self.locked = params['locked']
 		f.close()
-
-		browser_options = webdriver.ChromeOptions()
-		browser_options.add_argument('--incognito')
-		self.driver = webdriver.Chrome(options=browser_options)
 		
 		if(self.curr_prof != None):
 			self.skip_to_url(self.curr_prof)
 
 		self.cprint("Done Initializing")
-		self.print_state()
+		# self.print_state()
+		# print(params)
 		return;
 
 #------------------------------------------------------------------------------
@@ -316,7 +317,7 @@ class alpha_crawler():
 		state = dict()
 		#ENUMS can't be json serialized
 		state['crwid'] = self.crwid
-		state['base_url'] = params['base_url']
+		state['base_url'] = self.base_url
 		state['ptimer'] = self.ptimer
 		state['var'] = self.var
 		state['resc'] = self.resc
@@ -341,16 +342,7 @@ class alpha_crawler():
 		f.close()
 		return;
 
-	def click_view_all(self):
-		if(self.cstate != Dstate.PROFILE):
-			raise ValueError('profile does not fit the choices: {}'.format(valid_args))
-
-		buttons = self.driver.find_elements_by_partial_link_text('View All')
-		for x in buttons:
-			x.click()
-		self.cprint('\tclicked all the (View All) button')
-		return;
-
+	#----------------Navigation/Interaction Func--------------------------------
 	def click_href(self, relative_url):
 		#this emulates a user clicking on a link rather than typing in a url
 		link = self.driver.find_element_by_xpath('//a[@href="{}"]'.format(relative_url))
@@ -369,7 +361,7 @@ class alpha_crawler():
 
 	def click_img(self, un):
 		if(self.cstate != Dstate.PROFILE):
-			raise ValueError('Not the right state (Dstate.PROFILE)')
+			raise ValueError('Not the right state in (Dstate.PROFILE)')
 
 		self.click_view_all()
 		snip = un[1:]
@@ -378,6 +370,36 @@ class alpha_crawler():
 		plink.click()
 		return;
 
+	def click_view_all(self):
+		if(self.cstate != Dstate.PROFILE):
+			raise ValueError('profile does not fit the choices: {}'.format(valid_args))
+
+		buttons = self.driver.find_elements_by_partial_link_text('View All')
+		for x in buttons:
+			x.click()
+		self.cprint('\tclicked all the (View All) button')
+		return;
+
+	def expand_transaction_list(self):
+		if(not (self.cstate == Dstate.PROFILE or self.cstate == Dstate.PERSONAL)):
+			raise ValueError('Incorrect state: {}'.format(self.cstate))
+
+		expand_list = True
+		while(expand_list):
+			try:
+				more_button = self.driver.find_element_by_link_text(self.resc['more_href'])
+				more_button.click()
+				self.cprint('\tPressed the (More) button')
+			except selenium.common.exceptions.NoSuchElementException:
+				# self.cprint('There is no more (More) buttons to press')
+				expand_list = False
+
+			self.pause_crawler(self.ptimer,variation=self.var)
+
+		self.cprint('\tDone expanding list on prof')
+		return;
+
+	#----------------------Interrupt Checking Functions-------------------------
 	def check_limited(self):
 		try:
 			self.driver.find_element_by_xpath('//*[contains(text(),"{}")]'.format(self.resc['lim']))
@@ -405,7 +427,6 @@ class alpha_crawler():
 		self.navigate('back',None)
 		return;
 
-	#THIS FUNCTION STARTED CLEAN AND ELEGANT, BUT GOT REALLY COMPLICATED
 	def navigate(self,cmd,relative_url):
 		switch = {
 			'logout':(Dstate.LOGGEDOUT, None, self.click_href), 
@@ -426,11 +447,13 @@ class alpha_crawler():
 			self.change_profile(relative_url)
 			return;
 
-		if(relative_url == self.personal):
-			self.click_href(self.personal)
-			self.change_state(Dstate.PERSONAL)
-			self.change_profile(self.personal)
-			self.cprint("Special Situation, navigating back to personal")
+		if(relative_url == self.personal and self.cstate == Dstate.PROFILE):
+			# self.click_href(self.personal)
+			# self.change_state(Dstate.PERSONAL)
+			# self.change_profile(self.personal)
+			# self.cprint("Special Situation, navigating back to personal")
+			#we should never be returning to the personal state
+			self.cprint("should not be re-visiting profile: SKIPPING")
 			return; 
 
 		stidx = switch.get(cmd, lambda: self.cprint('invalid command given\n'))
@@ -456,26 +479,8 @@ class alpha_crawler():
 		self.pause_crawler(self.ptimer, variation=self.var)
 		return;
 
-	def navp_simple(self,un):
-		try:
-			self.navigate('coprof',un)
-		except: 
-			self.skip_to_url(un)
-
-		now = datetime.datetime.now()
-		year,month,day = now.year, now.month, now.day  
-
-		if(self.visited.get(un) != None):
-			# self.visited[un] = self.visited[un] + 1
-			print('\tvisited: {} AGAIN Updating last visit'.format(un))
-		else:
-			self.visited_len += 1
-			print('\tvisited: {}! Adding to the visited list'.format(un))
-
-		self.visited[un] = (year,month,day)
-
-	def navpet(self,un,fname):
-		if(self.no_visit.get(fname,None) != None):
+	def navpet(self,un,fusrs,ftrnx):
+		if(self.no_visit.get(un,None) != None):
 			self.cprint("hit someone on the no_visit list: {} SKIPPING".format(un))
 			return;
 
@@ -493,13 +498,15 @@ class alpha_crawler():
 		else:
 			self.visited_len += 1
 			self.cprint('\tvisited: {}! Adding to the visited list'.format(un))
-			self.ex_usrs(fname)
 			self.cprint('EXTRACTING!')
+			self.ex_usrs(fusrs)
+			# self.ex_trnx(ftrnx)
+			self.cprint('Done EXTRACTING!')
 
 		self.visited[un] = (year,month,day)
 		return;
 
-	def ex_usrs(self,fname):
+	def ex_usrs(self,fusrs):
 		if(not (self.cstate == Dstate.FLIST or self.cstate == Dstate.PROFILE)):
 			raise ValueError('Incorrect state: {}'.format(self.cstate))
 
@@ -517,9 +524,13 @@ class alpha_crawler():
 				match = re.findall(r'[/][\w|\W]+',element.get('href'))
 				if(match): #match is an empty list if there are no matches
 					a = a + 1
-					usernames.add(match[0])
-					# self.to_visit.add(match[0])
-					# add_user(fname,match[0])
+					usr = match[0]
+					#if the given user is not in the "NO VISIT" and "VISITED" pile....
+					add_cond = ((self.no_visit.get(usr,None) == None) and (self.visited.get(usr,None) == None))
+					if(add_cond):
+						usernames.add(usr)
+						# self.to_visit.add(match[0])
+						# add_user(fusrs,match[0])
 
 		else: 
 			self.cprint('Extracting other profile usn')
@@ -531,10 +542,11 @@ class alpha_crawler():
 				if(match):
 					#indexing like this will remove the parenthesises
 					temp = '/' + match[0][1:-1]
-					if(self.visited.get(temp,None) == None):
+					add_cond = ((self.no_visit.get(temp,None) == None) and (self.visited.get(temp,None) == None))
+					if(add_cond):
 						usernames.add(temp)
-					# self.to_visit.add(temp)
-					# add_user(fname,temp)
+						# self.to_visit.add(temp)
+						# add_user(fusrs,temp)
 
 			a = len(usernames)
 
@@ -542,38 +554,19 @@ class alpha_crawler():
 			raise ValueError("Number of extracted friends should not be 0, possible error")
 
 		self.cprint('\tlength of list = {}'.format(a))
+		print(usernames)
 		self.to_visit = (self.to_visit|usernames)
+		self.to_visit_len += a 
 		self.cprint('adding users to the TO_VISIT pile')
 		return;
 
-	def expand_transaction_list(self):
-		if(not (self.cstate == Dstate.PROFILE or self.cstate == Dstate.PERSONAL)):
-			raise ValueError('Incorrect state: {}'.format(self.cstate))
-
-		#More button: Class = moreButton "More"
-		#More button: Class = moreButton "No more payments"
-		expand_list = True
-		while(expand_list):
-			try:
-				more_button = self.driver.find_element_by_link_text(self.resc['more_href'])
-				more_button.click()
-				self.cprint('\tPressed the (More) button')
-			except selenium.common.exceptions.NoSuchElementException:
-				# self.cprint('There is no more (More) buttons to press')
-				expand_list = False
-
-			self.pause_crawler(self.ptimer,variation=self.var)
-
-		self.cprint('\tDone expanding list on prof')
-		return;
-
-	def ex_trnx(self, fname):
+	def ex_trnx(self, ftrnx):
 		if(not (self.cstate == Dstate.PERSONAL or self.cstate == Dstate.PROFILE)):
 			raise ValueError('Incorrect state: {}'.format(self.cstate))
 
 		self.expand_transaction_list()
 	 
-		self.cprint('\tExtracting...')
+		self.cprint('\tExtracting TRNX...')
 		raw_elements = self.driver.find_elements_by_class_name(self.resc['transaction_class'])
 
 		trns = []
@@ -614,19 +607,21 @@ class alpha_crawler():
 				payee = second
 				self.cprint('{} {} {} on (m,d,y)=({} , {}, {})\n text: {} \n privacy:{}\n--------'.format(payer,paydir2[0],payee,month,day,year,description,privacy))
 
-			# add_transaction(fname,payer,payee,description,year,month,day,privacy)
+			# add_transaction(ftrnx,payer,payee,description,year,month,day,privacy)
 
-		self.cprint('\tLength of extracted list = {}'.format(a))
+		# self.cprint('\tLength of extracted list = {}'.format(a))
 		self.cprint('\tDone extracting')
 		return;
 
-	def pogo_search(self, fusr,limit = 100):
+	def pogo_search(self,fusr,ftrnx,limit = 80):
 		self.navigate('pprof', self.personal)
+		self.visited[self.personal] = (0,0,0)
 		# self.ex_trnx()
 		self.pause_crawler(3,variation = 1)
 		self.navigate('flist','/friends')
 		self.pause_crawler(3,variation = 1)
 		self.ex_usrs(fusr)
+		self.pause_crawler(5,variation=1)
 
 		while(self.to_visit):
 			if(self.visited_len >= limit):
@@ -634,7 +629,7 @@ class alpha_crawler():
 
 			try: 
 				rand = self.to_visit.pop()
-				self.navpet(rand, fusr)
+				self.navpet(rand,fusr,ftrnx)
 				# self.ex_trnx()
 			except KeyError: 
 				self.cprint("List is empty - Conclusion")
@@ -643,14 +638,108 @@ class alpha_crawler():
 
 			self.pause_crawler(5, variation = 1)
 			print("length of visited = {}".format(self.visited_len))
+			print("length of to visit = {}".format(self.to_visit_len))
 
 			self.check_limited()
 			self.check_disconnect()
 			self.check_invalid()
 
-		self.cprint("Reached the limit")
+		self.cprint("Reached the self defined limit")
 
+	def test_file_run(self,param_file, cred_file, data_file):
+		b = open(param_file, 'r')
+		prms = json.loads(b.read())
+		c = open(cred_file, 'r')
+		creds = json.loads(c.read())
+		d = open(data_file, 'r')
+		dat = json.loads(d.read())
 
+		try:
+			self.open_website()
+			self.login(creds['v_un'], creds['v_pw'])
+			self.click_send_authentication_code()
+			self.pause_crawler(14,variation =2)
+			auth_code=self.get_authentication_code(creds['em_un'],creds['em_pw'],creds['imap'])
+			self.pause_crawler(9, variation = 1)
+			self.enter_authentication_code(auth_code)
+			self.pause_crawler(8,variation=2)
+
+			# self.navigate('pprof', self.personal)
+			# self.visited[self.personal] = (0,0,0)
+			# # self.ex_trnx()
+			# self.pause_crawler(3,variation = 1)
+			# self.navigate('flist','/friends')
+			# self.pause_crawler(3,variation = 1)
+			# self.ex_usrs(dat['usrs'])
+			# self.pause_crawler(5,variation=1)
+
+			# self.navigate('coprof', '/Ted-Kim-14')
+			# self.ex_usrs(dat['usrs'])
+
+			# print(self.to_visit)
+			# print(self.visited)
+
+			self.pogo_search(dat['usrs'],dat['trnx'])
+			# self.navigate('pprof', self.personal) #go to crawler's profile
+			# self.ex_trnx(dat['trnx'])
+			# self.navigate('flist','/friends')
+			# self.pause_crawler(10, variation = 6)
+			# self.ex_usrs(dat['usrs'])
+			#Add Other stuff here 
+			# self.cprint("add other stuff here")
+
+		except KeyboardInterrupt: 
+			print("CRAWLER EXIT THROUGH KEYBOARD INTERRUPT")
+		except Exception as e:
+			serv = creds['smtp']
+			error_add = prms['error_email']
+			subj = '[CRAWLER ERROR]'
+			emsg = 'crawler has entered an exception: {}'.format(e) 
+			print(e)
+			print(emsg)
+			# eu.send_email(serv,creds['em_un'],error_add,creds['em_pw'],subj,emsg)
+			# self.save_state(dat['save'])
+			print("saved the crawler")
+		
+		return;
+
+	def file_run(self,param_file,cred_file,data_file):
+		b = open(param_file, 'r')
+		prms = json.loads(b.read())
+		c = open(cred_file, 'r')
+		creds = json.loads(c.read())
+		d = open(data_file, 'r')
+		dat = json.loads(d.read())
+
+		try:
+			self.open_website()
+			self.login(creds['v_un'], creds['v_pw'])
+			self.click_send_authentication_code()
+			auth_code=self.get_authentication_code(creds['em_un'],creds['em_pw'],creds['imap'])
+			self.pause_crawler(10, variation = 2)
+			self.enter_authentication_code(auth_code)
+			self.pause_crawler(10,variation=2)
+
+			self.navigate('pprof', self.personal) #go to crawler's profile
+			self.ex_trnx(dat['trnx'])
+			self.navigate('flist','/friends')
+			self.pause_crawler(10, variation = 6)
+			self.ex_usrs(dat['usrs'])
+			#Add Other stuff here 
+			self.cprint("add other stuff here")
+
+		except KeyboardInterrupt: 
+			print("CRAWLER EXIT THROUGH KEYBOARD INTERRUPT")
+		except Exception as e:
+			serv = creds['smtp']
+			error_add = prms['error_email']
+			subj = '[CRAWLER ERROR]'
+			emsg = 'crawler has entered an exception: {}'.format(e) 
+			eu.send_email(serv,creds['em_un'],error_add,creds['em_pw'],subj,emsg)
+			self.save_state(dat['save'])
+			print("saved the crawler")
+		
+		return;
 
 	def test_run(self,v_un,v_pw,email_un,email_pw,ftrnx,fusr,fsave,imap_url='imap.gmail.com'):
 		# try:
@@ -732,6 +821,9 @@ class alpha_crawler():
 			self.save_state(fsave)
 			print("saved the crawler")
 
+def file_run(param_file, cred_file, data_file):
+	return;
+
 if __name__ == "__main__":
 	html_info = {
 		'login-url': 'https://venmo.com/account/sign-in',
@@ -760,6 +852,9 @@ if __name__ == "__main__":
 		'bad_url':'the page you requested does not exist'
 	}
 	# a = alpha_crawler(cred.v_prof,cred.burl,html_info,pause_timer=5,var=1,verbose=True)
+	a = alpha_crawler()
+	a.load_properties('crawler.params')
+	a.test_file_run('crawler.params','crawler.cred','crawler.data')
 	# a = gen_crawl("one.save",cred.v_prof,pause_timer=5,var=1,verbose=True,**html_info)
 	# a.test_run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd,'data/one.trnx','data/one.usr','data/three.save')
 	# a.run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd,'data/one.trnx','data/one.usr','data/one.save')

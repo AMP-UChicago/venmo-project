@@ -12,3 +12,8 @@ webscrapper/dates2
 webscrapper/config.json
 webscrapper/crawler.params
 webscrapper/crawler.cred
+webscrapper/crawler.data
+webscrapper/*.json
+webscrapper/scratch
+webscrapper/scratch2
+webscrapper/scratch3

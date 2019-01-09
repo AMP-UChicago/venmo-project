@@ -77,7 +77,10 @@ def conv_date(date:str):
 		mcur = 100*cmonth + cday 
 		mtrx = 100*month + day
 		if(mtrx > mcur):
-			year = cyear - 1
+			if(cyear == 1):
+				year = 12
+			else:
+				year = cyear - 1
 		else:
 			year = cyear
 
@@ -160,9 +163,6 @@ class alpha_crawler():
 		self.locked = params['locked']
 		f.close()
 		
-		if(self.curr_prof != None):
-			self.skip_to_url(self.curr_prof)
-
 		self.cprint("Done Initializing")
 		# self.print_state()
 		# print(params)
@@ -384,18 +384,25 @@ class alpha_crawler():
 		if(not (self.cstate == Dstate.PROFILE or self.cstate == Dstate.PERSONAL)):
 			raise ValueError('Incorrect state: {}'.format(self.cstate))
 
+		count = 0 
+
 		expand_list = True
 		while(expand_list):
 			try:
 				more_button = self.driver.find_element_by_link_text(self.resc['more_href'])
+				# print(self.resc['more_href'])
 				more_button.click()
+				count += 1
+				# blah = self.driver.find_element_by_link_text(self.resc['more_bug'])
 				self.cprint('\tPressed the (More) button')
 			except selenium.common.exceptions.NoSuchElementException:
 				# self.cprint('There is no more (More) buttons to press')
 				expand_list = False
 
-			self.pause_crawler(self.ptimer,variation=self.var)
-
+			self.pause_crawler(5,variation=1)
+			#Countermeasure in place to overcome a very specific edge case
+			if(count >= 20):
+				return
 		self.cprint('\tDone expanding list on prof')
 		return;
 
@@ -500,7 +507,7 @@ class alpha_crawler():
 			self.cprint('\tvisited: {}! Adding to the visited list'.format(un))
 			self.cprint('EXTRACTING!')
 			self.ex_usrs(fusrs)
-			# self.ex_trnx(ftrnx)
+			self.ex_trnx(ftrnx)
 			self.cprint('Done EXTRACTING!')
 
 		self.visited[un] = (year,month,day)
@@ -530,7 +537,7 @@ class alpha_crawler():
 					if(add_cond):
 						usernames.add(usr)
 						# self.to_visit.add(match[0])
-						# add_user(fusrs,match[0])
+						add_user(fusrs,match[0])
 
 		else: 
 			self.cprint('Extracting other profile usn')
@@ -546,7 +553,7 @@ class alpha_crawler():
 					if(add_cond):
 						usernames.add(temp)
 						# self.to_visit.add(temp)
-						# add_user(fusrs,temp)
+						add_user(fusrs,temp)
 
 			a = len(usernames)
 
@@ -607,21 +614,35 @@ class alpha_crawler():
 				payee = second
 				self.cprint('{} {} {} on (m,d,y)=({} , {}, {})\n text: {} \n privacy:{}\n--------'.format(payer,paydir2[0],payee,month,day,year,description,privacy))
 
-			# add_transaction(ftrnx,payer,payee,description,year,month,day,privacy)
+			add_transaction(ftrnx,payer,payee,description,year,month,day,privacy)
 
 		# self.cprint('\tLength of extracted list = {}'.format(a))
 		self.cprint('\tDone extracting')
 		return;
 
-	def pogo_search(self,fusr,ftrnx,limit = 80):
+
+	def set_up(self,fusr,ftrnx):
 		self.navigate('pprof', self.personal)
 		self.visited[self.personal] = (0,0,0)
-		# self.ex_trnx()
+		self.ex_trnx(ftrnx)
 		self.pause_crawler(3,variation = 1)
 		self.navigate('flist','/friends')
 		self.pause_crawler(3,variation = 1)
 		self.ex_usrs(fusr)
 		self.pause_crawler(5,variation=1)
+
+		if(self.curr_prof != None):
+			self.skip_to_url(self.curr_prof)
+
+	def pogo_search(self,fusr,ftrnx,limit = 80):
+		# self.navigate('pprof', self.personal)
+		# self.visited[self.personal] = (0,0,0)
+		# self.ex_trnx(ftrnx)
+		# self.pause_crawler(3,variation = 1)
+		# self.navigate('flist','/friends')
+		# self.pause_crawler(3,variation = 1)
+		# self.ex_usrs(fusr)
+		# self.pause_crawler(5,variation=1)
 
 		while(self.to_visit):
 			if(self.visited_len >= limit):
@@ -658,9 +679,9 @@ class alpha_crawler():
 			self.open_website()
 			self.login(creds['v_un'], creds['v_pw'])
 			self.click_send_authentication_code()
-			self.pause_crawler(14,variation =2)
+			self.pause_crawler(180,variation =2)
 			auth_code=self.get_authentication_code(creds['em_un'],creds['em_pw'],creds['imap'])
-			self.pause_crawler(9, variation = 1)
+			self.pause_crawler(20, variation = 1)
 			self.enter_authentication_code(auth_code)
 			self.pause_crawler(8,variation=2)
 
@@ -678,8 +699,11 @@ class alpha_crawler():
 
 			# print(self.to_visit)
 			# print(self.visited)
+			self.set_up(dat['usrs'],dat['trnx'])
 
-			self.pogo_search(dat['usrs'],dat['trnx'])
+			for x in range(0,20):
+				self.pogo_search(dat['usrs'],dat['trnx'], limit = ((x+1) * 80))
+				self.pause_crawler(1200,variation = 1)
 			# self.navigate('pprof', self.personal) #go to crawler's profile
 			# self.ex_trnx(dat['trnx'])
 			# self.navigate('flist','/friends')
@@ -689,6 +713,7 @@ class alpha_crawler():
 			# self.cprint("add other stuff here")
 
 		except KeyboardInterrupt: 
+			self.save_state(dat['save'])
 			print("CRAWLER EXIT THROUGH KEYBOARD INTERRUPT")
 		except Exception as e:
 			serv = creds['smtp']
@@ -697,8 +722,8 @@ class alpha_crawler():
 			emsg = 'crawler has entered an exception: {}'.format(e) 
 			print(e)
 			print(emsg)
-			# eu.send_email(serv,creds['em_un'],error_add,creds['em_pw'],subj,emsg)
-			# self.save_state(dat['save'])
+			eu.send_email(serv,creds['em_un'],error_add,creds['em_pw'],subj,emsg)
+			self.save_state(dat['save'])
 			print("saved the crawler")
 		
 		return;
@@ -853,7 +878,7 @@ if __name__ == "__main__":
 	}
 	# a = alpha_crawler(cred.v_prof,cred.burl,html_info,pause_timer=5,var=1,verbose=True)
 	a = alpha_crawler()
-	a.load_properties('crawler.params')
+	a.load_properties('crawler.params') #/media/sf_E_DRIVE/save3.params
 	a.test_file_run('crawler.params','crawler.cred','crawler.data')
 	# a = gen_crawl("one.save",cred.v_prof,pause_timer=5,var=1,verbose=True,**html_info)
 	# a.test_run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd,'data/one.trnx','data/one.usr','data/three.save')

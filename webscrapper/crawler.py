@@ -703,7 +703,7 @@ class alpha_crawler():
 			# print(self.visited)
 			self.set_up(dat['usrs'],dat['trnx'])
 
-			for x in range(0,20):
+			for x in range(25,40):
 				self.pogo_search(dat['usrs'],dat['trnx'], limit = ((x+1) * 80))
 				self.pause_crawler(1200,variation = 1)
 			# self.navigate('pprof', self.personal) #go to crawler's profile

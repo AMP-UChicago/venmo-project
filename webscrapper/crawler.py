@@ -3,7 +3,7 @@ from selenium.webdriver.common.keys import Keys
 import selenium.common.exceptions
 from bs4 import BeautifulSoup
 from enum import Enum
-import time, re, random, datetime, json
+import time, re, random, datetime, json, threading
 
 #libraries defined in this repository
 import email_utility as eu 
@@ -325,8 +325,17 @@ class alpha_crawler():
 		state['resc'] = self.resc
 
 		state['personal'] = self.personal
-		state['pstate'] = self.pstate.value 
-		state['cstate'] = self.cstate.value
+		#Edge case with enumerations
+		if(self.pstate == None):
+			state['pstate'] = 0
+		else:
+			state['pstate'] = self.pstate.value 
+
+		if(self.pstate == None):
+			state['cstate'] = 0
+		else:
+			state['cstate'] = self.cstate.value
+		
 		state['prev_prof'] = self.prev_prof
 		state['curr_prof'] = self.curr_prof
 
@@ -410,30 +419,34 @@ class alpha_crawler():
 
 	#----------------------Interrupt Checking Functions-------------------------
 	def check_limited(self):
-		try:
-			self.driver.find_element_by_xpath('//*[contains(text(),"{}")]'.format(self.resc['lim']))
-		except selenium.common.exceptions.NoSuchElementException:
-			return;
-		self.locked = True
-		self.cprint("hit a rate limie, killing process")
-		exit()
+		while(True):
+			try:
+				self.driver.find_element_by_xpath('//*[contains(text(),"{}")]'.format(self.resc['lim']))
+				self.locked = True
+				self.cprint("hit a rate limit, killing process")
+				raise ValueError("hit a rate limit") #TODO, CHANGE THIS LATER
+			except selenium.common.exceptions.NoSuchElementException:
+				return;
+		return;
 	
 	def check_disconnect(self):
-		try:
-			self.driver.find_element_by_xpath('//*[contains(text(),"{}"]'.format(self.resc['502']))
-		except:
-			return;
-		self.cprint("hit a bad gateway, refreshing")
-		self.driver.refresh()
+		while(True):
+			try:
+				self.driver.find_element_by_xpath('//*[contains(text(),"{}"]'.format(self.resc['502']))
+				self.cprint("hit a bad gateway, refreshing")
+				self.driver.refresh()
+			except:
+				return;
 		return;
 
 	def check_invalid(self):
-		try: 
-			self.driver.find_element_by_xpath('//*[contains(text(),"{}")]'.format(self.resc['bad_url']))
-		except: 
-			return;
-		self.cprint("invalid url, going back")
-		self.navigate('back',None)
+		while(True):
+			try: 
+				self.driver.find_element_by_xpath('//*[contains(text(),"{}")]'.format(self.resc['bad_url']))
+				self.cprint("invalid url, going back")
+				self.navigate('back',None)
+			except: 
+				return;
 		return;
 
 	def navigate(self,cmd,relative_url):
@@ -538,7 +551,6 @@ class alpha_crawler():
 					add_cond = ((self.no_visit.get(usr,None) == None) and (self.visited.get(usr,None) == None))
 					if(add_cond):
 						usernames.add(usr)
-						# self.to_visit.add(match[0])
 						add_user(fusrs,match[0])
 
 		else: 
@@ -554,7 +566,6 @@ class alpha_crawler():
 					add_cond = ((self.no_visit.get(temp,None) == None) and (self.visited.get(temp,None) == None))
 					if(add_cond):
 						usernames.add(temp)
-						# self.to_visit.add(temp)
 						add_user(fusrs,temp)
 
 			a = len(usernames)
@@ -633,6 +644,12 @@ class alpha_crawler():
 		self.ex_usrs(fusr)
 		self.pause_crawler(5,variation=1)
 
+		t1 = threading.Thread(target=self.check_invalid())
+		t2 = threading.Thread(target=self.check_disconnect())
+		t3 = threading.Thread(target=self.check_limited())
+		t1.start()
+		t2.start()
+		t3.start()
 		if(self.curr_prof != None):
 			self.skip_to_url(self.curr_prof)
 
@@ -687,32 +704,11 @@ class alpha_crawler():
 			self.enter_authentication_code(auth_code)
 			self.pause_crawler(8,variation=2)
 
-			# self.navigate('pprof', self.personal)
-			# self.visited[self.personal] = (0,0,0)
-			# # self.ex_trnx()
-			# self.pause_crawler(3,variation = 1)
-			# self.navigate('flist','/friends')
-			# self.pause_crawler(3,variation = 1)
-			# self.ex_usrs(dat['usrs'])
-			# self.pause_crawler(5,variation=1)
-
-			# self.navigate('coprof', '/Ted-Kim-14')
-			# self.ex_usrs(dat['usrs'])
-
-			# print(self.to_visit)
-			# print(self.visited)
 			self.set_up(dat['usrs'],dat['trnx'])
 
 			for x in range(25,40):
 				self.pogo_search(dat['usrs'],dat['trnx'], limit = ((x+1) * 80))
 				self.pause_crawler(1200,variation = 1)
-			# self.navigate('pprof', self.personal) #go to crawler's profile
-			# self.ex_trnx(dat['trnx'])
-			# self.navigate('flist','/friends')
-			# self.pause_crawler(10, variation = 6)
-			# self.ex_usrs(dat['usrs'])
-			#Add Other stuff here 
-			# self.cprint("add other stuff here")
 
 		except KeyboardInterrupt: 
 			self.save_state(dat['save'])
@@ -810,8 +806,6 @@ class alpha_crawler():
 			self.save_state(fsave)
 			print("saved the crawler")
 
-def file_run(param_file, cred_file, data_file):
-	return;
 
 if __name__ == "__main__":
 	html_info = {

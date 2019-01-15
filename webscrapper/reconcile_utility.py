@@ -1,4 +1,5 @@
 import re
+import emoji 
 
 def reduce_usr(fname,suffix,name_delta):
 	unproc = set()
@@ -55,7 +56,29 @@ def validate_usr(orig,new):
 	return;
 
 
+def replace_emoji(fname,suffix,name_delta):
+	f = open(fname,"r")
+	newlines = []
+	for line in f:
+		newlines.append(emoji.demojize(line))
+	f.close()
+	print("done iterating through the original")
+
+	split_ind = (len(suffix) + 1)*-1
+	mod_fname = fname[:split_ind] + name_delta + fname[split_ind:]
+
+	print("beginning to write to {}".format(mod_fname))
+	f2 = open(mod_fname,"w")
+	for a in newlines:
+		f2.write(a)
+	f2.close()
+
+	print("done")
+	return;
+
+
 if __name__ == "__main__":
-	reduce_usr("/media/sf_E_DRIVE/data/test3.usrs","usr","_reduced")
+	# reduce_usr("/media/sf_E_DRIVE/data/test3.usrs","usr","_reduced")
 	# validate_usr('a','b')
-	validate_usr("/media/sf_E_DRIVE/data/test3.usrs","/media/sf_E_DRIVE/data/test3_reduced.usrs")
+	# validate_usr("/media/sf_E_DRIVE/data/test3.usrs","/media/sf_E_DRIVE/data/test3_reduced.usrs")
+	replace_emoji('/media/sf_E_DRIVE/data/test3.trnx','trnx','_emojiless')

@@ -26,7 +26,7 @@ class Dstate(Enum):
 def add_user(fname,usr):
 	file = open(fname,'a')
 	enc_un = pu.hash_username(usr)
-	file.write('{} -> {}\n'.format(usr,enc_un))
+	file.write('{}, uchicago = {}\n'.format(enc_un, 'unknown'))
 	file.close()
 	return;
 

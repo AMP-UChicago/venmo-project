@@ -133,7 +133,7 @@ class alpha_crawler():
 
 		self.visited = dict()
 		self.visited_len = 0
-		self.to_visit = set()
+		self.to_visit = list()
 		self.to_visit_len = 0
 		self.no_visit = dict()
 
@@ -148,7 +148,7 @@ class alpha_crawler():
 		self.ptimer = params['ptimer']
 		self.var = params['var']
 		self.resc = params['resc']
-		self.verbose = params['verbose']
+		self.verbose = True #params['verbose']
 
 		self.personal = params['personal']
 		self.curr_prof = params['curr_prof']
@@ -158,8 +158,8 @@ class alpha_crawler():
 
 		self.visited = params['visited']
 		self.visited_len = params['visited_len']
-		self.to_visit = set(params['to_visit'])
-		self.to_visit_len = params['to_visit_len']
+		self.to_visit = params['to_visit']
+		self.to_visit_len = params['to_visit_len'] 
 		self.no_visit = params['no_visit']
 
 		self.locked = params['locked']
@@ -210,7 +210,7 @@ class alpha_crawler():
 		return;
 
 	#final
-	def get_authentication_code(self,email_un,email_pw,imap_url):
+	def get_authentication_code(self,email_un,email_pw,fwd_add,imap_url):
 		#Keep in mind that the structure of a venmo auth code is 
 		#"Your Venmo verification code is XXXXXX" (6 numbers)
 		#With Email forwarding it is: 
@@ -220,7 +220,7 @@ class alpha_crawler():
 
 		#This will also BREAK/Not work if the email does not come from uchicagoamp@gmail.com
 		interface = eu.email_interface(email_un,email_pw,imap_url)
-		auth_emails = interface.find_emails_from(email_un) #find emails from the email 
+		auth_emails = interface.find_emails_from(fwd_add) #find emails from the email 
 		#associated with this account 
 		auth_text = interface.extract_last_email(auth_emails)
 		print(auth_text)
@@ -342,7 +342,7 @@ class alpha_crawler():
 		state['visited'] = self.visited
 		state['visited_len'] = self.visited_len
 		#Sets can also not be JSON serialized
-		state['to_visit'] = list(self.to_visit)
+		state['to_visit'] = self.to_visit
 		state['to_visit_len'] = self.to_visit_len
 		state['no_visit'] = self.no_visit
 
@@ -532,7 +532,7 @@ class alpha_crawler():
 		if(not (self.cstate == Dstate.FLIST or self.cstate == Dstate.PROFILE)):
 			raise ValueError('Incorrect state: {}'.format(self.cstate))
 
-		usernames = set()
+		# usernames = list()
 		a = 0
 		#the two approaches to extracting friends are very different
 		if(self.cstate == Dstate.FLIST):
@@ -545,12 +545,14 @@ class alpha_crawler():
 			for element in parsed_elements:
 				match = re.findall(r'[/][\w|\W]+',element.get('href'))
 				if(match): #match is an empty list if there are no matches
-					a = a + 1
+					
 					usr = match[0]
 					#if the given user is not in the "NO VISIT" and "VISITED" pile....
 					add_cond = ((self.no_visit.get(usr,None) == None) and (self.visited.get(usr,None) == None))
 					if(add_cond):
-						usernames.add(usr)
+						a = a + 1
+						# usernames.append(usr)
+						self.to_visit.append(usr)
 						add_user(fusrs,match[0])
 
 		else: 
@@ -565,17 +567,19 @@ class alpha_crawler():
 					temp = '/' + match[0][1:-1]
 					add_cond = ((self.no_visit.get(temp,None) == None) and (self.visited.get(temp,None) == None))
 					if(add_cond):
-						usernames.add(temp)
+						a = a + 1
+						# usernames.append(temp)
+						self.to_visit.append(temp)
 						add_user(fusrs,temp)
 
-			a = len(usernames)
+			# a = len(usernames)
 
-		if(a == 0):
-			raise ValueError("Number of extracted friends should not be 0, possible error")
+		# if(a == 0):
+			# raise ValueError("Number of extracted friends should not be 0, possible error")
 
 		self.cprint('\tlength of list = {}'.format(a))
-		print(usernames)
-		self.to_visit = (self.to_visit|usernames)
+		# print(usernames)
+		# self.to_visit = self.to_visit.extend(usernames)
 		self.to_visit_len += a 
 		self.cprint('adding users to the TO_VISIT pile')
 		return;
@@ -616,6 +620,10 @@ class alpha_crawler():
 			
 			pd = box_content.find('div','m_five_t p_ten_r').getText() #pdt = pd.getText().replace(" ","")
 			paydir = re.findall(r'charged',pd) # probably should make this an ifelse statement
+			
+			payer = ''
+			payee = ''
+			
 			if(paydir):
 				payer = second
 				payee = first
@@ -652,24 +660,40 @@ class alpha_crawler():
 		t3.start()
 		if(self.curr_prof != None):
 			self.skip_to_url(self.curr_prof)
+		return;
 
-	def pogo_search(self,fusr,ftrnx,limit = 80):
-		# self.navigate('pprof', self.personal)
-		# self.visited[self.personal] = (0,0,0)
-		# self.ex_trnx(ftrnx)
-		# self.pause_crawler(3,variation = 1)
-		# self.navigate('flist','/friends')
-		# self.pause_crawler(3,variation = 1)
-		# self.ex_usrs(fusr)
-		# self.pause_crawler(5,variation=1)
+	def set_up2(self,fusr,ftrnx):
+		if(self.curr_prof != None):
+			self.navpet(self.curr_prof,fusr,ftrnx)
+			# self.navigate('coprof',self.curr_prof)
+			# self.ex_trnx(ftrnx)
+			# self.pause_crawler(3,variation = 1)
+			# self.ex_usrs(fusr)
+			self.pause_crawler(5,variation=1)
 
+		t1 = threading.Thread(target=self.check_invalid())
+		t2 = threading.Thread(target=self.check_disconnect())
+		t3 = threading.Thread(target=self.check_limited())
+		t1.start()
+		t2.start()
+		t3.start()
+		return;
+
+
+	def pogo_search(self,fusr,ftrnx,limit = 14000):
+		counter = 0 
 		while(self.to_visit):
 			if(self.visited_len >= limit):
 				break
 
+			if(counter >= 90):
+				self.pause_crawler(800,variation=1)
+				counter = 0
+
 			try: 
-				rand = self.to_visit.pop()
+				rand = self.to_visit.pop(0)
 				self.navpet(rand,fusr,ftrnx)
+				counter += 1
 				# self.ex_trnx()
 			except KeyError: 
 				self.cprint("List is empty - Conclusion")
@@ -680,13 +704,9 @@ class alpha_crawler():
 			print("length of visited = {}".format(self.visited_len))
 			print("length of to visit = {}".format(self.to_visit_len))
 
-			self.check_limited()
-			self.check_disconnect()
-			self.check_invalid()
-
 		self.cprint("Reached the self defined limit")
 
-	def test_file_run(self,param_file, cred_file, data_file):
+	def test_file_run(self,param_file, cred_file, data_file, resume = False):
 		b = open(param_file, 'r')
 		prms = json.loads(b.read())
 		c = open(cred_file, 'r')
@@ -698,17 +718,22 @@ class alpha_crawler():
 			self.open_website()
 			self.login(creds['v_un'], creds['v_pw'])
 			self.click_send_authentication_code()
-			self.pause_crawler(180,variation =2)
-			auth_code=self.get_authentication_code(creds['em_un'],creds['em_pw'],creds['imap'])
+			self.pause_crawler(300,variation =2)
+			auth_code=self.get_authentication_code(creds['em_un'],creds['em_pw'],'uchicagoamp@gmail.com',creds['imap'])
 			self.pause_crawler(20, variation = 1)
 			self.enter_authentication_code(auth_code)
 			self.pause_crawler(8,variation=2)
 
-			self.set_up(dat['usrs'],dat['trnx'])
+			if(resume == True):
+				self.set_up2(dat['usrs'],dat['trnx'])
+			else:
+				self.set_up(dat['usrs'],dat['trnx'])
+			
+			for x in range(0,4):
+				self.pogo_search(dat['usrs'],dat['trnx'])
 
-			for x in range(25,40):
-				self.pogo_search(dat['usrs'],dat['trnx'], limit = ((x+1) * 80))
-				self.pause_crawler(1200,variation = 1)
+			self.cprint("for some reason we finished our four loops")
+			self.save_state(dat['save'])
 
 		except KeyboardInterrupt: 
 			self.save_state(dat['save'])
@@ -836,8 +861,9 @@ if __name__ == "__main__":
 	}
 	# a = alpha_crawler(cred.v_prof,cred.burl,html_info,pause_timer=5,var=1,verbose=True)
 	a = alpha_crawler()
-	a.load_properties('crawler.params') #/media/sf_E_DRIVE/save3.params
-	a.test_file_run('crawler.params','crawler.cred','crawler.data')
+	# a.load_properties('crawler.params') #/media/sf_E_DRIVE/save3.params
+	a.load_properties('/media/sf_E_DRIVE/save_final.params')
+	a.test_file_run('crawler.params','crawler.cred','crawler.data', resume = True)
 	# a = gen_crawl("one.save",cred.v_prof,pause_timer=5,var=1,verbose=True,**html_info)
 	# a.test_run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd,'data/one.trnx','data/one.usr','data/three.save')
 	# a.run(cred.v_username2,cred.v_password2,cred.v_email_un,cred.v_email_pd,'data/one.trnx','data/one.usr','data/one.save')

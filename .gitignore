@@ -17,3 +17,7 @@ webscrapper/*.json
 webscrapper/scratch
 webscrapper/scratch2
 webscrapper/scratch3
+webscrapper/test*
+webscrapper/*.params
+*.trnx
+*.usrs

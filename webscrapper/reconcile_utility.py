@@ -38,9 +38,10 @@ def reduce_data(fname,suffix,name_delta):
 	f = open(fname,"r")
 	for x in f: 
 		pcount += 1
-		temp = tuple([y.strip() for y in x.split(",")])
+		# temp = tuple([emoji.demojize(y.strip()) for y in x.split(",")])
+		temp = tuple([y.strip() for y in x.split(", ")])
 		unproc.add(temp)
-		print(temp)
+		# print(temp)
 	f.close()
 
 	split_ind = (len(suffix) + 1)*-1
@@ -52,7 +53,50 @@ def reduce_data(fname,suffix,name_delta):
 	try: 
 		while(popped):
 			popped = unproc.pop()
-			g.write("{}\n".format(popped))
+			mod_popped = ', '.join(popped)
+			g.write("{}\n".format(mod_popped))
+			acount+=1
+	except KeyError: 
+		g.close()
+		print("wrote reduced form to new file: {}".format(mod_fname))
+		print("length of the new set {}".format(acount))
+		print("length of the old set {}".format(pcount))
+	return;
+
+def reduce_data_trnx(fname,suffix,name_delta, keys=['pyr:',', pye:',', desc:',', year:',', month:', ', day:',', prset:']):
+	unproc = set()
+
+	pcount = 0
+	f = open(fname,"r")
+	for x in f:
+		temp_list = [] 
+		pcount += 1
+		for i in range(0,len(keys)):
+			if(i == len(keys)-1):
+				mtch_str_edge = re.search(keys[i] + '(.*)', x.strip())
+				temp_list.append(mtch_str_edge.group(1))
+				continue
+
+			mtch_str = re.search(keys[i] + '(.*)' + keys[i+1], x.strip())
+			temp_list.append(mtch_str.group(1))
+
+		unproc.add(tuple(temp_list))
+	f.close()
+
+	split_ind = (len(suffix) + 1)*-1
+	mod_fname = fname[:split_ind] + name_delta + fname[split_ind:]
+	
+	g = open(mod_fname,"w")
+	acount = 0
+	popped = 1
+	try: 
+		while(popped):
+			popped = unproc.pop()
+			#WARNING, BELOW CODE IS NOT SAFE FOR HUMAN EYES
+			mod_popped = ""
+			for z in range(0,len(keys)):
+				mod_popped = mod_popped + keys[z] + popped[z]
+			g.write("{}\n".format(mod_popped))
 			acount+=1
 	except KeyError: 
 		g.close()
@@ -62,7 +106,7 @@ def reduce_data(fname,suffix,name_delta):
 	return;
 
 def validate(orig,new):
-	print("test")
+	print("Beginning Validation")
 	f1 = open(orig, "r")
 	s1 = set()
 	for line1 in f1:
@@ -80,6 +124,10 @@ def validate(orig,new):
 	print("length of set in f2 = {}".format(len(s2)))
 	a = (s2 ^ s1)
 	print("differences in original and new= {}".format(len(a)))
+
+	# for q in a: 
+	# 	print(q)
+
 	if(a == set()):
 		print("It seems that the new file has the same set!")
 	return;
@@ -91,7 +139,8 @@ if __name__ == "__main__":
 	# validate_usr("/media/sf_E_DRIVE/data/test3.usrs","/media/sf_E_DRIVE/data/test3_reduced.usrs")
 	# replace_emoji('/media/sf__DRIVE/data/test3.trnx','trnx','_emojiless')
 
-	# reduce_data('/media/sf_L_DRIVE/venmo-project/webscrapper/rone.usrs','usrs','_new')
-	# validate('rone_new.usrs','tester')
-	# reduce_data('rone.trnx','trnx','_new')
-	validate('rone_new.trnx','tester.trnx')
+	reduce_data('rone.usrs','usrs','_prime')
+	validate('rone_prime.usrs','rone.usrs')
+	# reduce_data('rone.trnx','trnx','_prime2')
+	reduce_data_trnx('rone.trnx','trnx','_prime3')
+	validate('rone_prime3.trnx','rone.trnx')

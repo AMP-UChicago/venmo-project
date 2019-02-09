@@ -21,3 +21,8 @@ webscrapper/test*
 webscrapper/*.params
 *.trnx
 *.usrs
+webscrapper/transaction.csv
+webscrapper/transaction2.csv
+webscrapper/transaction_sample.csv
+webscrapper/users.csv
+webscrapper/validity_check.py

@@ -31,6 +31,68 @@ def replace_emoji(fname,suffix,name_delta):
 	print("done")
 	return;
 
+def convert_to_csv(fname,output,columns: list(),keys: list()):
+	unproc = list()
+	pcount = 0
+	f = open(fname,"r")
+	for x in f:
+		temp_list = [] 
+		pcount += 1
+		for i in range(0,len(keys)):
+			if(i == len(keys)-1):
+				mtch_str_edge = re.search(keys[i] + '(.*)', x.strip())
+				temp_list.append(mtch_str_edge.group(1))
+				continue
+			mtch_str = re.search(keys[i] + '(.*)' + keys[i+1], x.strip())
+			emoj_clean = emoji.demojize(mtch_str.group(1).strip())
+			temp_list.append(emoj_clean)
+		unproc.append(tuple(temp_list))
+	f.close()
+
+	g = open(output,"w")
+	#write the headers of the columns to make the csv self-documenting
+	for header in columns: 
+		g.write("{}, ".format(header))
+	g.write("\n")
+
+	for observation in unproc: 
+		for feature in observation: 
+			g.write("{}, ".format(feature))
+		g.write("\n")
+
+	g.close()
+	print("DONE. LENGTH = {}".format(pcount))
+	return;
+
+def convert_to_csv2(fname,output,columns: list(),keys: list()):
+	pcount = 0
+	g = open(output,"w")
+	#write the headers of the columns to make the csv self-documenting
+	for header in columns: 
+		g.write("{},".format(header))
+	g.write("\n")
+
+	f = open(fname,"r")
+	for x in f:
+		observation = [] 
+		pcount += 1
+		for i in range(0,len(keys)):
+			if(i == len(keys)-1):
+				mtch_str_edge = re.search(keys[i] + '(.*)', x.strip())
+				observation.append(mtch_str_edge.group(1))
+				continue
+			mtch_str = re.search(keys[i] + '(.*)' + keys[i+1], x.strip())
+			emoj_clean = emoji.demojize(mtch_str.group(1).strip())
+			observation.append(emoj_clean)
+		# unproc.append(tuple(temp_list))
+		for feature in observation: 
+			g.write("{},".format(feature.strip()))
+		g.write("\n")
+	f.close()
+	g.close()
+	print("DONE. LENGTH = {}".format(pcount))
+	return;
+
 def reduce_data(fname,suffix,name_delta):
 	unproc = set()
 
@@ -139,8 +201,12 @@ if __name__ == "__main__":
 	# validate_usr("/media/sf_E_DRIVE/data/test3.usrs","/media/sf_E_DRIVE/data/test3_reduced.usrs")
 	# replace_emoji('/media/sf__DRIVE/data/test3.trnx','trnx','_emojiless')
 
-	reduce_data('rone.usrs','usrs','_prime')
-	validate('rone_prime.usrs','rone.usrs')
+	# reduce_data('rone.usrs','usrs','_prime')
+	# validate('rone_prime.usrs','rone.usrs')
 	# reduce_data('rone.trnx','trnx','_prime2')
-	reduce_data_trnx('rone.trnx','trnx','_prime3')
-	validate('rone_prime3.trnx','rone.trnx')
+	# reduce_data_trnx('rone.trnx','trnx','_prime3')
+	# validate('rone_prime3.trnx','rone.trnx')
+	# convert_to_csv('rone_prime3.trnx','transaction.csv',['payer','receiver','tran_text','year','month','day','privacy setting'],['pyr:',', pye:',', desc:',', year:',', month:', ', day:',', prset:'])
+	# convert_to_csv2('rone_prime3.trnx','transaction3.csv',['payer','receiver','tran_text','year','month','day','privacy setting'],['pyr:',', pye:',', desc:',', year:',', month:', ', day:',', prset:'])
+	convert_to_csv2('rone_prime.usrs','users.csv',['hased_username','uchicago'],['',', uchicago ='])
+	

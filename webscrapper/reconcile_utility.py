@@ -85,8 +85,13 @@ def convert_to_csv2(fname,output,columns: list(),keys: list()):
 			emoj_clean = emoji.demojize(mtch_str.group(1).strip())
 			observation.append(emoj_clean)
 		# unproc.append(tuple(temp_list))
-		for feature in observation: 
-			g.write("{},".format(feature.strip()))
+		temp_count = 0 
+		for feature in observation:
+			if(temp_count == 2):
+				g.write("\"{}\",".format(feature.strip()))
+			else:
+				g.write("{},".format(feature.strip()))
+			temp_count = temp_count + 1
 		g.write("\n")
 	f.close()
 	g.close()
@@ -207,6 +212,6 @@ if __name__ == "__main__":
 	# reduce_data_trnx('rone.trnx','trnx','_prime3')
 	# validate('rone_prime3.trnx','rone.trnx')
 	# convert_to_csv('rone_prime3.trnx','transaction.csv',['payer','receiver','tran_text','year','month','day','privacy setting'],['pyr:',', pye:',', desc:',', year:',', month:', ', day:',', prset:'])
-	# convert_to_csv2('rone_prime3.trnx','transaction3.csv',['payer','receiver','tran_text','year','month','day','privacy setting'],['pyr:',', pye:',', desc:',', year:',', month:', ', day:',', prset:'])
-	convert_to_csv2('rone_prime.usrs','users.csv',['hased_username','uchicago'],['',', uchicago ='])
+	convert_to_csv2('rone_prime3.trnx','transaction4.csv',['payer','receiver','tran_text','year','month','day','privacy setting'],['pyr:',', pye:',', desc:',', year:',', month:', ', day:',', prset:'])
+	# convert_to_csv2('rone_prime.usrs','users.csv',['hased_username','uchicago'],['',', uchicago ='])
 	
